@@ -1,0 +1,6 @@
+{
+  "name": "BHARATPLAY",
+  "description": "India Creates. India Watches. A creator-first Indian video streaming, Bharat Shorts, live broadcasting, and community platform.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

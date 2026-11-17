@@ -1,0 +1,538 @@
+{
+  "entities": {
+    "UserPublicProfile": {
+      "title": "UserPublicProfile",
+      "description": "Public channel and creator profile visible across BharatPlay.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "handle": { "type": "string", "minLength": 2, "maxLength": 40, "pattern": "^[a-zA-Z0-9_\\.\\-]+$" },
+        "bio": { "type": "string", "maxLength": 500 },
+        "avatarUrl": { "type": "string", "maxLength": 500 },
+        "bannerUrl": { "type": "string", "maxLength": 500 },
+        "isCreator": { "type": "boolean" },
+        "isEarlyCreator": { "type": "boolean" },
+        "isVerified": { "type": "boolean" },
+        "isFeatured": { "type": "boolean" },
+        "boostEnabled": { "type": "boolean" },
+        "leagueCategory": { "type": "string", "maxLength": 40 },
+        "preferredLanguage": { "type": "string", "maxLength": 30 },
+        "subscribersCount": { "type": "number" },
+        "totalViews": { "type": "number" },
+        "rewardTier": { "type": "string", "enum": ["Seed", "Rising", "Star", "Icon"] },
+        "accountStatus": { "type": "string", "enum": ["active", "suspended", "deleted"] },
+        "channelStatus": { "type": "string", "enum": ["active", "suspended", "deleted"] },
+        "moderationReason": { "type": "string", "maxLength": 500 },
+        "statusUpdatedAt": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "displayName", "handle", "isCreator", "createdAt", "updatedAt"]
+    },
+    "UserPrivateAccount": {
+      "title": "UserPrivateAccount",
+      "description": "Private user account details including PII, role, monetization settings, and notifications preference.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "email": { "type": "string", "format": "email", "maxLength": 160 },
+        "role": { "type": "string", "enum": ["viewer", "creator", "admin", "ceo"] },
+        "monetizationEnabled": { "type": "boolean" },
+        "estimatedEarningsInr": { "type": "number" },
+        "upiId": { "type": "string", "maxLength": 100 },
+        "notificationsEnabled": { "type": "boolean" },
+        "suspended": { "type": "boolean" },
+        "suspensionReason": { "type": "string", "maxLength": 500 },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "role", "updatedAt"]
+    },
+    "AdminRole": {
+      "title": "AdminRole",
+      "description": "Trusted server-verified admin role marker document.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "grantedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "grantedAt"]
+    },
+    "CeoRole": {
+      "title": "CeoRole",
+      "description": "Exclusive CEO clearance marker document accessible only to the verified platform CEO.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "clearanceLevel": { "type": "string", "enum": ["CEO"] },
+        "grantedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "clearanceLevel", "grantedAt"]
+    },
+    "CeoAuditLog": {
+      "title": "CeoAuditLog",
+      "description": "Immutable, permanent audit trail of all CEO Command Center administrative actions.",
+      "type": "object",
+      "properties": {
+        "actorUid": { "type": "string", "maxLength": 128 },
+        "actorEmail": { "type": "string", "maxLength": 160 },
+        "action": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "targetType": { "type": "string", "enum": ["user", "channel", "video", "report", "announcement", "system"] },
+        "targetId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "targetLabel": { "type": "string", "maxLength": 150 },
+        "reason": { "type": "string", "minLength": 2, "maxLength": 500 },
+        "status": { "type": "string", "enum": ["success", "blocked", "failed"] },
+        "details": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["actorUid", "action", "targetType", "targetId", "reason", "status", "createdAt"]
+    },
+    "Video": {
+      "title": "Video",
+      "description": "Video or Bharat Short metadata referencing scalable media storage URLs.",
+      "type": "object",
+      "properties": {
+        "creatorId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "creatorName": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "creatorAvatar": { "type": "string", "maxLength": 500 },
+        "title": { "type": "string", "minLength": 2, "maxLength": 150 },
+        "description": { "type": "string", "maxLength": 3000 },
+        "videoUrl": { "type": "string", "minLength": 1, "maxLength": 500 },
+        "thumbnailUrl": { "type": "string", "maxLength": 500 },
+        "type": { "type": "string", "enum": ["video", "short"] },
+        "category": { "type": "string", "maxLength": 50 },
+        "language": { "type": "string", "maxLength": 30 },
+        "durationSeconds": { "type": "number" },
+        "musicTrack": { "type": "string", "maxLength": 120 },
+        "challengeId": { "type": "string", "maxLength": 128 },
+        "tags": { "type": "array" },
+        "chapters": { "type": "array" },
+        "viewsCount": { "type": "number" },
+        "uniqueViewersCount": { "type": "number" },
+        "totalWatchSeconds": { "type": "number" },
+        "likesCount": { "type": "number" },
+        "dislikesCount": { "type": "number" },
+        "commentsCount": { "type": "number" },
+        "sharesCount": { "type": "number" },
+        "status": { "type": "string", "enum": ["published", "flagged", "removed"] },
+        "removalReason": { "type": "string", "maxLength": 500 },
+        "removedBy": { "type": "string", "maxLength": 128 },
+        "isTrending": { "type": "boolean" },
+        "isEarlyCreatorSpotlight": { "type": "boolean" },
+        "isOriginal": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["creatorId", "creatorName", "title", "videoUrl", "type", "category", "language", "status", "createdAt", "updatedAt"]
+    },
+    "VideoComment": {
+      "title": "VideoComment",
+      "description": "Comment or reply on a video or short.",
+      "type": "object",
+      "properties": {
+        "videoId": { "type": "string", "maxLength": 128 },
+        "authorId": { "type": "string", "maxLength": 128 },
+        "authorName": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "authorAvatar": { "type": "string", "maxLength": 500 },
+        "text": { "type": "string", "minLength": 1, "maxLength": 1000 },
+        "parentCommentId": { "type": "string", "maxLength": 128 },
+        "likesCount": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["videoId", "authorId", "authorName", "text", "createdAt"]
+    },
+    "VideoReaction": {
+      "title": "VideoReaction",
+      "description": "User like or dislike reaction on a video.",
+      "type": "object",
+      "properties": {
+        "videoId": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "type": { "type": "string", "enum": ["like", "dislike"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["videoId", "userId", "type", "createdAt"]
+    },
+    "Subscription": {
+      "title": "Subscription",
+      "description": "Channel subscription linking a viewer to a creator.",
+      "type": "object",
+      "properties": {
+        "subscriberId": { "type": "string", "maxLength": 128 },
+        "creatorId": { "type": "string", "maxLength": 128 },
+        "creatorName": { "type": "string", "maxLength": 80 },
+        "creatorAvatar": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["subscriberId", "creatorId", "createdAt"]
+    },
+    "Playlist": {
+      "title": "Playlist",
+      "description": "User or creator curated video playlist.",
+      "type": "object",
+      "properties": {
+        "ownerId": { "type": "string", "maxLength": 128 },
+        "ownerName": { "type": "string", "maxLength": 80 },
+        "title": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "description": { "type": "string", "maxLength": 500 },
+        "visibility": { "type": "string", "enum": ["public", "private"] },
+        "videoIds": { "type": "array" },
+        "thumbnailUrl": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "title", "visibility", "videoIds", "createdAt", "updatedAt"]
+    },
+    "WatchHistoryItem": {
+      "title": "WatchHistoryItem",
+      "description": "User watch progress for Continue Watching and Watch History.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128 },
+        "videoId": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 150 },
+        "thumbnailUrl": { "type": "string", "maxLength": 500 },
+        "creatorName": { "type": "string", "maxLength": 80 },
+        "durationSeconds": { "type": "number" },
+        "progressSeconds": { "type": "number" },
+        "maxProgressSeconds": { "type": "number" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "videoId", "title", "progressSeconds", "updatedAt"]
+    },
+    "WatchLaterItem": {
+      "title": "WatchLaterItem",
+      "description": "Videos bookmarked by a user to watch later.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128 },
+        "videoId": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 150 },
+        "thumbnailUrl": { "type": "string", "maxLength": 500 },
+        "creatorId": { "type": "string", "maxLength": 128 },
+        "creatorName": { "type": "string", "maxLength": 80 },
+        "durationSeconds": { "type": "number" },
+        "type": { "type": "string", "enum": ["video", "short"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "videoId", "title", "createdAt"]
+    },
+    "CommunityPost": {
+      "title": "CommunityPost",
+      "description": "Creator community post supporting text, image, poll, and announcements.",
+      "type": "object",
+      "properties": {
+        "creatorId": { "type": "string", "maxLength": 128 },
+        "creatorName": { "type": "string", "maxLength": 80 },
+        "creatorAvatar": { "type": "string", "maxLength": 500 },
+        "content": { "type": "string", "minLength": 1, "maxLength": 1500 },
+        "imageUrl": { "type": "string", "maxLength": 500 },
+        "postType": { "type": "string", "enum": ["text", "image", "poll", "announcement"] },
+        "pollOptions": { "type": "array" },
+        "pollVotes": { "type": "array" },
+        "likesCount": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["creatorId", "creatorName", "content", "postType", "createdAt"]
+    },
+    "CreatorSupport": {
+      "title": "CreatorSupport",
+      "description": "Viewer support contribution to an eligible Indian creator.",
+      "type": "object",
+      "properties": {
+        "supporterId": { "type": "string", "maxLength": 128 },
+        "supporterName": { "type": "string", "maxLength": 80 },
+        "creatorId": { "type": "string", "maxLength": 128 },
+        "creatorName": { "type": "string", "maxLength": 80 },
+        "amountInr": { "type": "number" },
+        "message": { "type": "string", "maxLength": 280 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["supporterId", "creatorId", "amountInr", "createdAt"]
+    },
+    "CollaborationRequest": {
+      "title": "CollaborationRequest",
+      "description": "Creator-to-creator collaboration request and accepted partnerships.",
+      "type": "object",
+      "properties": {
+        "senderId": { "type": "string", "maxLength": 128 },
+        "senderName": { "type": "string", "maxLength": 80 },
+        "senderAvatar": { "type": "string", "maxLength": 500 },
+        "recipientId": { "type": "string", "maxLength": 128 },
+        "recipientName": { "type": "string", "maxLength": 80 },
+        "recipientAvatar": { "type": "string", "maxLength": 500 },
+        "title": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "proposal": { "type": "string", "minLength": 5, "maxLength": 800 },
+        "status": { "type": "string", "enum": ["pending", "accepted", "rejected"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["senderId", "senderName", "recipientId", "recipientName", "title", "proposal", "status", "createdAt", "updatedAt"]
+    },
+    "WatchPartyRoom": {
+      "title": "WatchPartyRoom",
+      "description": "Synchronized private or shared Watch Party room.",
+      "type": "object",
+      "properties": {
+        "hostId": { "type": "string", "maxLength": 128 },
+        "hostName": { "type": "string", "maxLength": 80 },
+        "title": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "videoId": { "type": "string", "maxLength": 128 },
+        "videoTitle": { "type": "string", "maxLength": 150 },
+        "videoUrl": { "type": "string", "maxLength": 500 },
+        "thumbnailUrl": { "type": "string", "maxLength": 500 },
+        "inviteCode": { "type": "string", "maxLength": 32 },
+        "isPrivate": { "type": "boolean" },
+        "isPlaying": { "type": "boolean" },
+        "currentTimeSeconds": { "type": "number" },
+        "status": { "type": "string", "enum": ["active", "ended"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["hostId", "hostName", "title", "videoId", "videoTitle", "videoUrl", "inviteCode", "isPrivate", "isPlaying", "currentTimeSeconds", "status", "createdAt", "updatedAt"]
+    },
+    "WatchPartyMessage": {
+      "title": "WatchPartyMessage",
+      "description": "Chat message inside a Watch Party room.",
+      "type": "object",
+      "properties": {
+        "roomId": { "type": "string", "maxLength": 128 },
+        "senderId": { "type": "string", "maxLength": 128 },
+        "senderName": { "type": "string", "maxLength": 80 },
+        "senderAvatar": { "type": "string", "maxLength": 500 },
+        "text": { "type": "string", "minLength": 1, "maxLength": 400 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["roomId", "senderId", "senderName", "text", "createdAt"]
+    },
+    "LiveStream": {
+      "title": "LiveStream",
+      "description": "Active or scheduled BharatPlay live broadcast.",
+      "type": "object",
+      "properties": {
+        "creatorId": { "type": "string", "maxLength": 128 },
+        "creatorName": { "type": "string", "maxLength": 80 },
+        "creatorAvatar": { "type": "string", "maxLength": 500 },
+        "title": { "type": "string", "minLength": 2, "maxLength": 150 },
+        "description": { "type": "string", "maxLength": 1000 },
+        "category": { "type": "string", "maxLength": 50 },
+        "language": { "type": "string", "maxLength": 30 },
+        "thumbnailUrl": { "type": "string", "maxLength": 500 },
+        "streamUrl": { "type": "string", "maxLength": 500 },
+        "isLive": { "type": "boolean" },
+        "viewerCount": { "type": "number" },
+        "startedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["creatorId", "creatorName", "title", "isLive", "startedAt"]
+    },
+    "LiveChatMessage": {
+      "title": "LiveChatMessage",
+      "description": "Persisted live stream chat message.",
+      "type": "object",
+      "properties": {
+        "streamId": { "type": "string", "maxLength": 128 },
+        "senderId": { "type": "string", "maxLength": 128 },
+        "senderName": { "type": "string", "maxLength": 80 },
+        "senderAvatar": { "type": "string", "maxLength": 500 },
+        "text": { "type": "string", "minLength": 1, "maxLength": 400 },
+        "superSupportInr": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["streamId", "senderId", "senderName", "text", "createdAt"]
+    },
+    "CreatorChallenge": {
+      "title": "CreatorChallenge",
+      "description": "Weekly creator competition and community video challenge.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "maxLength": 120 },
+        "description": { "type": "string", "maxLength": 1000 },
+        "prizePoolInr": { "type": "number" },
+        "category": { "type": "string", "maxLength": 50 },
+        "deadline": { "type": "string", "maxLength": 40 },
+        "participantsCount": { "type": "number" },
+        "status": { "type": "string", "enum": ["active", "ended"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "description", "prizePoolInr", "status", "createdAt"]
+    },
+    "LeagueCompetition": {
+      "title": "LeagueCompetition",
+      "description": "Monthly BharatPlay Creator League competition cycle.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "maxLength": 120 },
+        "monthLabel": { "type": "string", "maxLength": 40 },
+        "description": { "type": "string", "maxLength": 1000 },
+        "prizePoolInr": { "type": "number" },
+        "categories": { "type": "array" },
+        "winnerCreatorId": { "type": "string", "maxLength": 128 },
+        "winnerCreatorName": { "type": "string", "maxLength": 80 },
+        "status": { "type": "string", "enum": ["active", "completed"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "monthLabel", "description", "prizePoolInr", "status", "createdAt"]
+    },
+    "PlatformAnnouncement": {
+      "title": "PlatformAnnouncement",
+      "description": "Official platform announcement broadcast by admins or CEO.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "maxLength": 120 },
+        "body": { "type": "string", "maxLength": 600 },
+        "category": { "type": "string", "enum": ["feature", "league", "policy", "event"] },
+        "createdBy": { "type": "string", "maxLength": 80 },
+        "isActive": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "body", "category", "isActive", "createdAt"]
+    },
+    "ModerationReport": {
+      "title": "ModerationReport",
+      "description": "User-submitted report for content moderation.",
+      "type": "object",
+      "properties": {
+        "reporterId": { "type": "string", "maxLength": 128 },
+        "targetType": { "type": "string", "enum": ["video", "comment", "user"] },
+        "targetId": { "type": "string", "maxLength": 128 },
+        "targetTitle": { "type": "string", "maxLength": 150 },
+        "reason": { "type": "string", "minLength": 3, "maxLength": 500 },
+        "status": { "type": "string", "enum": ["pending", "reviewed", "resolved", "dismissed"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["reporterId", "targetType", "targetId", "reason", "status", "createdAt"]
+    },
+    "UserNotification": {
+      "title": "UserNotification",
+      "description": "Real-time user notifications for subscribers, comments, likes, collaborations, live streams, and announcements.",
+      "type": "object",
+      "properties": {
+        "recipientId": { "type": "string", "maxLength": 128 },
+        "senderName": { "type": "string", "maxLength": 80 },
+        "type": { "type": "string", "enum": ["live", "upload", "comment", "support", "reward", "system", "subscriber", "like", "collaboration", "announcement"] },
+        "title": { "type": "string", "maxLength": 120 },
+        "message": { "type": "string", "maxLength": 300 },
+        "linkPath": { "type": "string", "maxLength": 200 },
+        "isRead": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["recipientId", "type", "title", "message", "isRead", "createdAt"]
+    },
+    "PlatformConfig": {
+      "title": "PlatformConfig",
+      "description": "Global platform categories, regional languages, and monetization configuration.",
+      "type": "object",
+      "properties": {
+        "categories": { "type": "array" },
+        "languages": { "type": "array" },
+        "earlyCreatorBoostEnabled": { "type": "boolean" },
+        "creatorRevenueSharePercent": { "type": "number" },
+        "maintenanceMode": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["categories", "languages", "earlyCreatorBoostEnabled", "creatorRevenueSharePercent", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserPublicProfile" },
+      "description": "Public creator and viewer channel profiles (no PII)."
+    },
+    "/users/{userId}/private/{docId}": {
+      "schema": { "$ref": "#/entities/UserPrivateAccount" },
+      "description": "Private user PII, role, and monetization ledger."
+    },
+    "/users/{userId}/watchHistory/{videoId}": {
+      "schema": { "$ref": "#/entities/WatchHistoryItem" },
+      "description": "Continue Watching playback progress and Watch History per user."
+    },
+    "/users/{userId}/watchLater/{videoId}": {
+      "schema": { "$ref": "#/entities/WatchLaterItem" },
+      "description": "Watch Later saved videos per user."
+    },
+    "/admins/{adminId}": {
+      "schema": { "$ref": "#/entities/AdminRole" },
+      "description": "Admin role verification documents."
+    },
+    "/ceoRoles/{ceoId}": {
+      "schema": { "$ref": "#/entities/CeoRole" },
+      "description": "Exclusive CEO role verification documents."
+    },
+    "/ceoAuditLogs/{logId}": {
+      "schema": { "$ref": "#/entities/CeoAuditLog" },
+      "description": "Immutable CEO Command Center activity and security audit logs."
+    },
+    "/videos/{videoId}": {
+      "schema": { "$ref": "#/entities/Video" },
+      "description": "Published, flagged, and soft-removed videos and Bharat Shorts metadata."
+    },
+    "/videos/{videoId}/comments/{commentId}": {
+      "schema": { "$ref": "#/entities/VideoComment" },
+      "description": "Comments and threaded replies on a video."
+    },
+    "/videos/{videoId}/reactions/{userId}": {
+      "schema": { "$ref": "#/entities/VideoReaction" },
+      "description": "Like and dislike reactions per user per video."
+    },
+    "/subscriptions/{subId}": {
+      "schema": { "$ref": "#/entities/Subscription" },
+      "description": "Channel subscriptions."
+    },
+    "/playlists/{playlistId}": {
+      "schema": { "$ref": "#/entities/Playlist" },
+      "description": "Public and private playlists."
+    },
+    "/communityPosts/{postId}": {
+      "schema": { "$ref": "#/entities/CommunityPost" },
+      "description": "Creator community posts and polls."
+    },
+    "/creatorSupports/{supportId}": {
+      "schema": { "$ref": "#/entities/CreatorSupport" },
+      "description": "Creator support contributions."
+    },
+    "/collaborations/{collabId}": {
+      "schema": { "$ref": "#/entities/CollaborationRequest" },
+      "description": "Creator collaboration requests and accepted collaborations."
+    },
+    "/watchParties/{roomId}": {
+      "schema": { "$ref": "#/entities/WatchPartyRoom" },
+      "description": "Private and shared Watch Party rooms."
+    },
+    "/watchParties/{roomId}/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/WatchPartyMessage" },
+      "description": "Watch Party room chat messages."
+    },
+    "/liveStreams/{streamId}": {
+      "schema": { "$ref": "#/entities/LiveStream" },
+      "description": "Live broadcast streams."
+    },
+    "/liveStreams/{streamId}/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/LiveChatMessage" },
+      "description": "Live stream chat messages."
+    },
+    "/challenges/{challengeId}": {
+      "schema": { "$ref": "#/entities/CreatorChallenge" },
+      "description": "Weekly creator challenges."
+    },
+    "/competitions/{compId}": {
+      "schema": { "$ref": "#/entities/LeagueCompetition" },
+      "description": "Monthly BharatPlay Creator League competitions."
+    },
+    "/announcements/{announcementId}": {
+      "schema": { "$ref": "#/entities/PlatformAnnouncement" },
+      "description": "Platform announcements managed by admins and CEO."
+    },
+    "/reports/{reportId}": {
+      "schema": { "$ref": "#/entities/ModerationReport" },
+      "description": "Content moderation reports."
+    },
+    "/notifications/{notificationId}": {
+      "schema": { "$ref": "#/entities/UserNotification" },
+      "description": "User notifications."
+    },
+    "/platformConfig/{configId}": {
+      "schema": { "$ref": "#/entities/PlatformConfig" },
+      "description": "Global platform configuration and categories."
+    }
+  }
+}
