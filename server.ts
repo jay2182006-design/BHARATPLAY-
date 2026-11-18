@@ -9,6 +9,7 @@ import { initializeApp as initializeAdminApp, getApps as getAdminApps } from 'fi
 import { getAuth as getAdminAuth } from 'firebase-admin/auth';
 import firebaseConfig from './firebase-applet-config.json' with { type: 'json' };
 import { createCeoRouter, fsGetDoc, type CeoAuthedRequest } from './server/ceoRouter.ts';
+import { createMonetizationRouter } from './server/monetizationRouter.ts';
 
 const PORT = 3000;
 
@@ -137,6 +138,7 @@ async function startServer() {
 
   // Mount Server-Verified Auth Clearance & Exclusive CEO Command Center APIs
   app.use('/api', createCeoRouter(verifyBearerToken));
+  app.use('/api', createMonetizationRouter(verifyBearerToken));
 
   // Scalable Video Upload Endpoint (Verified Non-Suspended Creator)
   app.post('/api/upload/video', verifyBearerToken, ensureNotSuspended, (req, res) => {

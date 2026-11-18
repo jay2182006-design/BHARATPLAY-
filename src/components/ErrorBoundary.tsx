@@ -15,10 +15,10 @@ export class ErrorBoundary extends React.Component<{ children: React.ReactNode }
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen bg-white text-zinc-900 flex items-center justify-center p-6">
-          <div className="max-w-lg w-full bg-zinc-50 border border-zinc-200 rounded-2xl p-6 space-y-4 shadow-sm">
-            <h2 className="text-xl font-bold text-zinc-900 font-display">Something went wrong</h2>
-            <p className="text-sm text-zinc-600 break-words">
+        <div className="min-h-screen bg-white dark:bg-[#09090B] text-zinc-900 dark:text-white flex items-center justify-center p-6">
+          <div className="max-w-lg w-full bg-zinc-50 dark:bg-[#111115] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 space-y-4 shadow-sm">
+            <h2 className="text-xl font-bold text-zinc-900 dark:text-white font-display">Something went wrong</h2>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400 break-words">
               {this.state.message.startsWith('{')
                 ? 'A database permission or configuration check prevented this action. Please sign in with a verified account or refresh the page.'
                 : this.state.message}

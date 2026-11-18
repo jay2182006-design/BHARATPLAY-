@@ -1,4 +1,4 @@
-import type { CeoOverviewResponse } from '../types/bharatplay';
+import type { AdminPermissions, CeoOverviewResponse } from '../types/bharatplay';
 
 export class CeoReauthRequiredError extends Error {
   code = 'CEO_REAUTH_REQUIRED';
@@ -87,10 +87,87 @@ export async function executeCeoUserAction(
     targetUid: string;
     reason: string;
     value?: boolean;
+    permissions?: AdminPermissions;
+    notes?: string;
     confirmPhrase?: string;
   }
 ) {
   return ceoFetch<{ ok: boolean; details: string }>('/api/ceo/users/action', token, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function executeCeoAdminPermissions(
+  token: string,
+  payload: {
+    targetUid: string;
+    enabled: boolean;
+    permissions?: AdminPermissions;
+    notes?: string;
+    reason: string;
+  }
+) {
+  return ceoFetch<{ ok: boolean; details: string }>('/api/ceo/admins/permissions', token, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function executeCeoMonetizationConfig(
+  token: string,
+  payload: {
+    creatorRevenueSharePercent: number;
+    adSharePercent?: number;
+    membershipSharePercent?: number;
+    supportSharePercent?: number;
+    paidVideoSharePercent?: number;
+    paymentGatewayMode?: 'unconfigured' | 'test' | 'live';
+    minPayoutInr: number;
+    earlyCreatorBoostEnabled: boolean;
+    maintenanceMode: boolean;
+    categories?: string[];
+    languages?: string[];
+    reason: string;
+  }
+) {
+  return ceoFetch<{ ok: boolean }>('/api/ceo/monetization/config', token, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function executeCeoCreatorMonetization(
+  token: string,
+  payload: {
+    targetUid: string;
+    monetizationEnabled?: boolean;
+    estimatedEarningsInr?: number;
+    reason: string;
+  }
+) {
+  return ceoFetch<{ ok: boolean; monetizationEnabled: boolean; estimatedEarningsInr: number }>(
+    '/api/ceo/monetization/creator',
+    token,
+    {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }
+  );
+}
+
+export async function executeCeoPayoutAction(
+  token: string,
+  payload: {
+    payoutId?: string;
+    status?: 'approved' | 'paid' | 'rejected';
+    creatorId?: string;
+    amountInr?: number;
+    upiId?: string;
+    reason: string;
+  }
+) {
+  return ceoFetch<{ ok: boolean }>('/api/ceo/payouts/action', token, {
     method: 'POST',
     body: JSON.stringify(payload),
   });

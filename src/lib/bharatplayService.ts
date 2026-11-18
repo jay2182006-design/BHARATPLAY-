@@ -30,6 +30,7 @@ import {
   type CollaborationRequest,
   type CommunityPost,
   type CreatorChallenge,
+  type CreatorPayout,
   type LeagueCompetition,
   type LiveChatMessage,
   type LiveStream,
@@ -700,6 +701,9 @@ export async function publishVideo(params: {
   challengeId?: string;
   tags: string[];
   chapters?: VideoChapter[];
+  accessType?: 'free' | 'members_only' | 'paid';
+  priceInr?: number;
+  adsEnabled?: boolean;
 }): Promise<string> {
   const videoId = newDocId(params.type === 'short' ? 'short' : 'vid');
   const cleanTags = params.tags
@@ -711,6 +715,9 @@ export async function publishVideo(params: {
     .slice(0, VALIDATION_LIMITS.CHAPTERS_MAX)
     .map((c) => ({ timeSeconds: Math.round(c.timeSeconds), title: c.title.trim().slice(0, 80) }))
     .sort((a, b) => a.timeSeconds - b.timeSeconds);
+
+  const accessType = params.accessType || 'free';
+  const priceInr = accessType === 'paid' ? Math.max(10, Math.min(50000, Math.round(params.priceInr || 49))) : 0;
 
   try {
     await setDoc(doc(db, 'videos', videoId), {
@@ -737,6 +744,9 @@ export async function publishVideo(params: {
       commentsCount: 0,
       sharesCount: 0,
       status: 'published',
+      accessType,
+      priceInr,
+      adsEnabled: params.adsEnabled !== false,
       isTrending: false,
       isEarlyCreatorSpotlight: Boolean(params.creator.isEarlyCreator),
       isOriginal: false,
@@ -764,15 +774,30 @@ export async function updateVideoMetadata(
     category: string;
     language: string;
     chapters?: VideoChapter[];
+    accessType?: 'free' | 'members_only' | 'paid';
+    priceInr?: number;
+    adsEnabled?: boolean;
   }
 ) {
   try {
+    const accessUpdate =
+      updates.accessType !== undefined
+        ? {
+            accessType: updates.accessType,
+            priceInr:
+              updates.accessType === 'paid'
+                ? Math.max(10, Math.min(50000, Math.round(updates.priceInr || 49)))
+                : 0,
+          }
+        : {};
     await updateDoc(doc(db, 'videos', videoId), {
       title: updates.title.trim().slice(0, VALIDATION_LIMITS.VIDEO_TITLE_MAX),
       description: updates.description.trim().slice(0, VALIDATION_LIMITS.VIDEO_DESC_MAX),
       category: updates.category,
       language: updates.language,
       ...(updates.chapters ? { chapters: updates.chapters.slice(0, VALIDATION_LIMITS.CHAPTERS_MAX) } : {}),
+      ...(typeof updates.adsEnabled === 'boolean' ? { adsEnabled: updates.adsEnabled } : {}),
+      ...accessUpdate,
       updatedAt: serverTimestamp(),
     });
   } catch (err) {
@@ -1156,6 +1181,7 @@ export async function sendCreatorSupport(params: {
   creatorName: string;
   amountInr: number;
   message: string;
+  paymentOrderId?: string;
 }) {
   const supportId = newDocId('sup');
   try {
@@ -1166,6 +1192,9 @@ export async function sendCreatorSupport(params: {
       creatorName: params.creatorName.slice(0, VALIDATION_LIMITS.DISPLAY_NAME_MAX),
       amountInr: Math.max(10, Math.min(50000, params.amountInr)),
       message: params.message.trim().slice(0, VALIDATION_LIMITS.SUPPORT_MSG_MAX),
+      ...(params.paymentOrderId ? { paymentOrderId: params.paymentOrderId.slice(0, 128) } : {}),
+      paymentVerified: false,
+      status: 'pending_verification',
       createdAt: serverTimestamp(),
     });
     await sendUserNotification({
@@ -1430,5 +1459,56 @@ export async function adminToggleAnnouncement(annId: string, isActive: boolean) 
     await updateDoc(doc(db, 'announcements', annId), { isActive });
   } catch (err) {
     handleFirestoreError(err, OperationType.UPDATE, `announcements/${annId}`);
+  }
+}
+
+// --- Creator Payout Requests ---
+export function subscribeCreatorPayouts(creatorId: string, cb: (items: CreatorPayout[]) => void) {
+  const q = query(collection(db, 'creatorPayouts'), where('creatorId', '==', creatorId));
+  return onSnapshot(
+    q,
+    (snap) => {
+      const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<CreatorPayout, 'id'>) }));
+      list.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+      cb(list);
+    },
+    (err) => handleFirestoreError(err, OperationType.LIST, 'creatorPayouts')
+  );
+}
+
+export async function requestCreatorPayout(params: {
+  creator: UserPublicProfile;
+  upiId: string;
+  amountInr: number;
+  availableBalanceInr?: number;
+  notes?: string;
+}): Promise<string> {
+  const cleanUpi = params.upiId.trim().slice(0, 100);
+  if (cleanUpi.length < 3) {
+    throw new Error('Please save a valid UPI ID before requesting a payout.');
+  }
+  const cleanAmount = Math.max(100, Math.min(5000000, Math.round(Number(params.amountInr || 0))));
+  if (typeof params.availableBalanceInr === 'number' && cleanAmount > params.availableBalanceInr) {
+    throw new Error(
+      `Requested payout exceeds verified withdrawable balance (₹${params.availableBalanceInr}). Unverified estimates cannot be withdrawn.`
+    );
+  }
+  const payoutId = newDocId('pay');
+  try {
+    await setDoc(doc(db, 'creatorPayouts', payoutId), {
+      creatorId: params.creator.uid,
+      creatorName: params.creator.displayName.slice(0, VALIDATION_LIMITS.DISPLAY_NAME_MAX),
+      creatorHandle: (params.creator.handle || 'creator').slice(0, VALIDATION_LIMITS.HANDLE_MAX),
+      upiId: cleanUpi,
+      amountInr: cleanAmount,
+      periodLabel: new Date().toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }),
+      status: 'pending',
+      notes: (params.notes || 'Creator payout request submitted').trim().slice(0, 300),
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+    return payoutId;
+  } catch (err) {
+    handleFirestoreError(err, OperationType.CREATE, `creatorPayouts/${payoutId}`);
   }
 }

@@ -33,16 +33,16 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         {toasts.map((t) => (
           <div
             key={t.id}
-            className="pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-xl bg-white border border-zinc-200 shadow-lg text-sm text-zinc-900"
+            className="pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-xl bg-white dark:bg-[#141418] border border-zinc-200 dark:border-zinc-800 shadow-lg text-sm text-zinc-900 dark:text-white"
           >
-            {t.kind === 'success' && <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />}
+            {t.kind === 'success' && <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />}
             {t.kind === 'error' && <AlertCircle className="w-4 h-4 text-[#E11D48] shrink-0" />}
             {t.kind === 'info' && <Info className="w-4 h-4 text-[#EA580C] shrink-0" />}
             <span className="flex-1 leading-snug">{t.message}</span>
             <button
               onClick={() => setToasts((prev) => prev.filter((item) => item.id !== t.id))}
               aria-label="Dismiss notification"
-              className="text-zinc-400 hover:text-zinc-900 p-1"
+              className="text-zinc-400 hover:text-zinc-900 dark:hover:text-white p-1"
             >
               <X className="w-3.5 h-3.5" />
             </button>

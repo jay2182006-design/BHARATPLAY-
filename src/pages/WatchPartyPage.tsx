@@ -204,13 +204,13 @@ export function WatchPartyPage({
   return (
     <div className="max-w-[1440px] mx-auto px-4 md:px-6 lg:px-8 py-6 space-y-8">
       {/* Header & Controls */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-zinc-200 pb-5">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-zinc-200 dark:border-zinc-800 pb-5">
         <div>
-          <h1 className="text-2xl font-bold font-display text-zinc-900 flex items-center gap-2.5">
+          <h1 className="text-2xl font-bold font-display text-zinc-900 dark:text-white flex items-center gap-2.5">
             <Tv className="w-6 h-6 text-[#E11D48]" />
             <span>BharatPlay Watch Party</span>
           </h1>
-          <p className="text-xs text-zinc-600 mt-1">
+          <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-1">
             Create private or public synchronized viewing rooms with real-time play/pause and live room chat.
           </p>
         </div>
@@ -222,11 +222,11 @@ export function WatchPartyPage({
               value={joinCodeInput}
               onChange={(e) => setJoinCodeInput(e.target.value)}
               placeholder="Enter Room ID (wp_...)"
-              className="px-3 py-2 rounded-xl bg-white border border-zinc-300 text-xs text-zinc-900 placeholder-zinc-400 w-44"
+              className="px-3 py-2 rounded-xl bg-white dark:bg-[#111115] border border-zinc-300 dark:border-zinc-700 text-xs text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-zinc-500 w-44"
             />
             <button
               type="submit"
-              className="inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-zinc-100 hover:bg-zinc-200 border border-zinc-200 text-xs font-semibold text-zinc-900"
+              className="inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-zinc-100 dark:bg-[#141418] hover:bg-zinc-200 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-xs font-semibold text-zinc-900 dark:text-white"
             >
               <LogIn className="w-3.5 h-3.5" />
               <span>Join</span>
@@ -257,11 +257,11 @@ export function WatchPartyPage({
               onPlaybackAction={handlePlaybackAction}
             />
 
-            <div className="p-5 rounded-2xl bg-zinc-50 border border-zinc-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="p-5 rounded-2xl bg-zinc-50 dark:bg-[#111115] border border-zinc-200 dark:border-zinc-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-zinc-200/70 text-[11px] font-medium text-zinc-800">
-                    {activeRoom.isPrivate ? <Lock className="w-3 h-3 text-[#EA580C]" /> : <Globe2 className="w-3 h-3 text-emerald-600" />}
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-zinc-200/70 dark:bg-zinc-800 text-[11px] font-medium text-zinc-800 dark:text-zinc-200">
+                    {activeRoom.isPrivate ? <Lock className="w-3 h-3 text-[#EA580C] dark:text-[#F97316]" /> : <Globe2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />}
                     {activeRoom.isPrivate ? 'Private Room' : 'Public Room'}
                   </span>
                   <span className="inline-flex items-center gap-1 text-xs text-[#E11D48] font-semibold">
@@ -269,8 +269,8 @@ export function WatchPartyPage({
                     {participantsCount} in room
                   </span>
                 </div>
-                <h2 className="text-lg font-bold text-zinc-900">{activeRoom.title}</h2>
-                <p className="text-xs text-zinc-600">
+                <h2 className="text-lg font-bold text-zinc-900 dark:text-white">{activeRoom.title}</h2>
+                <p className="text-xs text-zinc-600 dark:text-zinc-400">
                   Hosted by {activeRoom.hostName} · Playing: {activeRoom.videoTitle}
                 </p>
               </div>
@@ -282,7 +282,7 @@ export function WatchPartyPage({
                     await navigator.clipboard?.writeText(activeRoom.id);
                     showToast(`Copied Room ID: ${activeRoom.id}`, 'success');
                   }}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-orange-50 hover:bg-orange-100 border border-orange-200 text-xs font-semibold text-[#EA580C]"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-orange-50 dark:bg-orange-950/30 hover:bg-orange-100 dark:hover:bg-orange-950/50 border border-orange-200 dark:border-orange-800/50 text-xs font-semibold text-[#EA580C] dark:text-[#FDBA74]"
                 >
                   <Copy className="w-3.5 h-3.5" />
                   <span>Invite: {activeRoom.id}</span>
@@ -290,7 +290,7 @@ export function WatchPartyPage({
                 <button
                   type="button"
                   onClick={() => setActiveRoomId('')}
-                  className="px-3 py-2 rounded-xl bg-zinc-200/70 hover:bg-zinc-200 text-xs font-medium text-zinc-800"
+                  className="px-3 py-2 rounded-xl bg-zinc-200/70 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-xs font-medium text-zinc-800 dark:text-zinc-200"
                 >
                   Leave
                 </button>
@@ -299,35 +299,35 @@ export function WatchPartyPage({
           </div>
 
           {/* Room Chat */}
-          <aside className="lg:col-span-4 bg-white border border-zinc-200 rounded-2xl flex flex-col h-[520px] overflow-hidden shadow-sm">
-            <div className="px-4 py-3 border-b border-zinc-200 bg-zinc-50 flex items-center justify-between">
-              <span className="text-sm font-bold text-zinc-900">Room Chat</span>
-              <span className="text-xs text-zinc-500 tabular-nums">{messages.length} msgs</span>
+          <aside className="lg:col-span-4 bg-white dark:bg-[#111115] border border-zinc-200 dark:border-zinc-800 rounded-2xl flex flex-col h-[520px] overflow-hidden shadow-sm">
+            <div className="px-4 py-3 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-[#141418] flex items-center justify-between">
+              <span className="text-sm font-bold text-zinc-900 dark:text-white">Room Chat</span>
+              <span className="text-xs text-zinc-500 dark:text-zinc-400 tabular-nums">{messages.length} msgs</span>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-white">
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-white dark:bg-[#111115]">
               {messages.length === 0 ? (
-                <p className="text-xs text-zinc-500 text-center py-10">
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 text-center py-10">
                   Play/pause syncs across everyone in this room. Say hello to start chatting!
                 </p>
               ) : (
                 messages.map((m) => (
-                  <div key={m.id} className="text-xs space-y-0.5 bg-zinc-50 p-2.5 rounded-lg border border-zinc-100">
-                    <span className="font-semibold text-[#EA580C]">{m.senderName}</span>
-                    <p className="text-zinc-800 break-words">{m.text}</p>
+                  <div key={m.id} className="text-xs space-y-0.5 bg-zinc-50 dark:bg-[#18181D] p-2.5 rounded-lg border border-zinc-100 dark:border-zinc-800">
+                    <span className="font-semibold text-[#EA580C] dark:text-[#F97316]">{m.senderName}</span>
+                    <p className="text-zinc-800 dark:text-zinc-200 break-words">{m.text}</p>
                   </div>
                 ))
               )}
             </div>
 
-            <form onSubmit={handleSendRoomChat} className="p-3 border-t border-zinc-200 bg-zinc-50 flex gap-2">
+            <form onSubmit={handleSendRoomChat} className="p-3 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-[#141418] flex gap-2">
               <input
                 type="text"
                 maxLength={400}
                 value={chatInput}
                 onChange={(e) => setChatInput(e.target.value)}
                 placeholder={user ? 'Message friends in room...' : 'Sign in to chat'}
-                className="flex-1 px-3 py-2 rounded-xl bg-white border border-zinc-300 text-xs text-zinc-900 placeholder-zinc-400"
+                className="flex-1 px-3 py-2 rounded-xl bg-white dark:bg-[#09090B] border border-zinc-300 dark:border-zinc-700 text-xs text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-zinc-500"
               />
               <button
                 type="submit"
@@ -341,12 +341,12 @@ export function WatchPartyPage({
         </div>
       ) : (
         <div className="space-y-4">
-          <h2 className="text-base font-bold text-zinc-900">Active Watch Party Rooms</h2>
+          <h2 className="text-base font-bold text-zinc-900 dark:text-white">Active Watch Party Rooms</h2>
           {watchParties.length === 0 ? (
-            <div className="p-12 rounded-2xl bg-zinc-50 border border-zinc-200 text-center space-y-3">
-              <Tv className="w-10 h-10 text-[#EA580C] mx-auto" />
-              <div className="text-base font-bold text-zinc-900">Start a Synchronized Watch Party</div>
-              <p className="text-xs text-zinc-600 max-w-md mx-auto">
+            <div className="p-12 rounded-2xl bg-zinc-50 dark:bg-[#111115] border border-zinc-200 dark:border-zinc-800 text-center space-y-3">
+              <Tv className="w-10 h-10 text-[#EA580C] dark:text-[#F97316] mx-auto" />
+              <div className="text-base font-bold text-zinc-900 dark:text-white">Start a Synchronized Watch Party</div>
+              <p className="text-xs text-zinc-600 dark:text-zinc-400 max-w-md mx-auto">
                 Pick any video on BharatPlay, invite friends with a private room code, and control play, pause, and seek together.
               </p>
               <button
@@ -364,7 +364,7 @@ export function WatchPartyPage({
                   key={room.id}
                   type="button"
                   onClick={() => setActiveRoomId(room.id)}
-                  className="text-left rounded-xl bg-white hover:bg-zinc-50 border border-zinc-200 hover:border-[#E11D48]/50 overflow-hidden transition-colors shadow-sm"
+                  className="text-left rounded-xl bg-white dark:bg-[#111115] hover:bg-zinc-50 dark:hover:bg-[#16161C] border border-zinc-200 dark:border-zinc-800 hover:border-[#E11D48]/50 overflow-hidden transition-colors shadow-sm"
                 >
                   <div className="aspect-video relative">
                     <MediaImage src={room.thumbnailUrl} alt={room.videoTitle} className="w-full h-full object-cover" />
@@ -373,8 +373,8 @@ export function WatchPartyPage({
                     </span>
                   </div>
                   <div className="p-4 space-y-1">
-                    <div className="text-sm font-bold text-zinc-900 truncate">{room.title}</div>
-                    <div className="text-xs text-zinc-500 truncate">
+                    <div className="text-sm font-bold text-zinc-900 dark:text-white truncate">{room.title}</div>
+                    <div className="text-xs text-zinc-500 dark:text-zinc-400 truncate">
                       Hosted by {room.hostName} · Code: {room.id}
                     </div>
                   </div>
@@ -387,29 +387,29 @@ export function WatchPartyPage({
 
       {/* Create Watch Room Modal */}
       {showCreate && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-black/50 dark:bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
           <form
             onSubmit={handleCreateRoom}
-            className="w-full max-w-md bg-white border border-zinc-200 rounded-2xl p-6 space-y-4 text-zinc-900 shadow-2xl"
+            className="w-full max-w-md bg-white dark:bg-[#111115] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 space-y-4 text-zinc-900 dark:text-white shadow-2xl"
           >
             <h3 className="text-base font-bold">Create Watch Party Room</h3>
             <div>
-              <label className="block text-xs text-zinc-700 mb-1.5">Room Title</label>
+              <label className="block text-xs text-zinc-700 dark:text-zinc-300 mb-1.5">Room Title</label>
               <input
                 type="text"
                 required
                 value={roomTitle}
                 onChange={(e) => setRoomTitle(e.target.value)}
                 placeholder="Friday Night Documentary Hangout"
-                className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-zinc-300 text-xs text-zinc-900"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-[#09090B] border border-zinc-300 dark:border-zinc-700 text-xs text-zinc-900 dark:text-white"
               />
             </div>
             <div>
-              <label className="block text-xs text-zinc-700 mb-1.5">Select Video</label>
+              <label className="block text-xs text-zinc-700 dark:text-zinc-300 mb-1.5">Select Video</label>
               <select
                 value={selectedVideoId}
                 onChange={(e) => setSelectedVideoId(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-zinc-300 text-xs text-zinc-900"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-[#09090B] border border-zinc-300 dark:border-zinc-700 text-xs text-zinc-900 dark:text-white"
               >
                 {videos.map((v) => (
                   <option key={v.id} value={v.id}>
@@ -418,7 +418,7 @@ export function WatchPartyPage({
                 ))}
               </select>
             </div>
-            <label className="flex items-center gap-2 text-xs text-zinc-700 cursor-pointer">
+            <label className="flex items-center gap-2 text-xs text-zinc-700 dark:text-zinc-300 cursor-pointer">
               <input
                 type="checkbox"
                 checked={isPrivate}
@@ -431,7 +431,7 @@ export function WatchPartyPage({
               <button
                 type="button"
                 onClick={() => setShowCreate(false)}
-                className="px-4 py-2 text-xs text-zinc-600 hover:text-zinc-900"
+                className="px-4 py-2 text-xs text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
               >
                 Cancel
               </button>

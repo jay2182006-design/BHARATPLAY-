@@ -38,10 +38,10 @@ export function SubscriptionsPage({
 
   if (!user) {
     return (
-      <div className="max-w-lg mx-auto my-16 p-8 rounded-2xl bg-zinc-50 border border-zinc-200 text-center space-y-4">
+      <div className="max-w-lg mx-auto my-16 p-8 rounded-2xl bg-zinc-50 dark:bg-[#111115] border border-zinc-200 dark:border-zinc-800 text-center space-y-4">
         <Users className="w-10 h-10 text-[#E11D48] mx-auto" />
-        <h1 className="text-xl font-bold font-display text-zinc-900">Sign in for your Subscriptions</h1>
-        <p className="text-sm text-zinc-600">
+        <h1 className="text-xl font-bold font-display text-zinc-900 dark:text-white">Sign in for your Subscriptions</h1>
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">
           Follow your favorite Indian creators and never miss their latest uploads or live streams.
         </p>
         <button
@@ -60,14 +60,14 @@ export function SubscriptionsPage({
 
   return (
     <div className="max-w-[1440px] mx-auto px-4 md:px-6 lg:px-8 py-6 space-y-8">
-      <div className="flex items-center justify-between border-b border-zinc-200 pb-4">
-        <h1 className="text-2xl font-bold font-display text-zinc-900">Subscriptions</h1>
-        <span className="text-xs text-zinc-500 tabular-nums">{subscriptions.length} channels</span>
+      <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-4">
+        <h1 className="text-2xl font-bold font-display text-zinc-900 dark:text-white">Subscriptions</h1>
+        <span className="text-xs text-zinc-500 dark:text-zinc-400 tabular-nums">{subscriptions.length} channels</span>
       </div>
 
       {subscriptions.length === 0 ? (
-        <div className="p-10 rounded-2xl bg-zinc-50 border border-zinc-200 text-center space-y-4">
-          <p className="text-sm text-zinc-700">You haven’t subscribed to any creators yet.</p>
+        <div className="p-10 rounded-2xl bg-zinc-50 dark:bg-[#111115] border border-zinc-200 dark:border-zinc-800 text-center space-y-4">
+          <p className="text-sm text-zinc-700 dark:text-zinc-300">You haven’t subscribed to any creators yet.</p>
           <button
             type="button"
             onClick={() => onNavigate('explore')}
@@ -91,7 +91,7 @@ export function SubscriptionsPage({
                   alt={sub.creatorName || 'Creator'}
                   className="w-14 h-14 rounded-full object-cover border-2 border-[#E11D48]/60 group-hover:border-[#F97316] transition-colors"
                 />
-                <span className="text-xs text-zinc-700 group-hover:text-zinc-900 truncate w-full text-center font-medium">
+                <span className="text-xs text-zinc-700 dark:text-zinc-300 group-hover:text-zinc-900 dark:group-hover:text-white truncate w-full text-center font-medium">
                   {sub.creatorName || 'Creator'}
                 </span>
               </button>

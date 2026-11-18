@@ -77,8 +77,8 @@ export function LivePage({
     return (
       <div className="max-w-4xl mx-auto p-12 text-center space-y-4">
         <Radio className="w-10 h-10 text-[#E11D48] mx-auto" />
-        <h1 className="text-xl font-bold text-zinc-900 font-display">No Live Broadcasts Active</h1>
-        <p className="text-sm text-zinc-600">
+        <h1 className="text-xl font-bold text-zinc-900 dark:text-white font-display">No Live Broadcasts Active</h1>
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">
           Creators can start a live broadcast anytime from Creator Studio.
         </p>
         <button
@@ -130,8 +130,8 @@ export function LivePage({
               onClick={() => onSelectStream(st.id)}
               className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-medium whitespace-nowrap shrink-0 border transition-colors ${
                 st.id === activeStream.id
-                  ? 'bg-rose-50 border-[#E11D48] text-[#BE123C]'
-                  : 'bg-zinc-50 border-zinc-200 text-zinc-700 hover:bg-zinc-100'
+                  ? 'bg-rose-50 dark:bg-rose-950/40 border-[#E11D48] text-[#BE123C] dark:text-[#FB7185]'
+                  : 'bg-zinc-50 dark:bg-[#141418] border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800'
               }`}
             >
               {st.isLive && <span className="w-2 h-2 rounded-full bg-[#E11D48] animate-pulse" />}
@@ -159,11 +159,11 @@ export function LivePage({
             isLive={activeStream.isLive}
           />
 
-          <div className="p-5 rounded-xl bg-zinc-50 border border-zinc-200 space-y-4">
+          <div className="p-5 rounded-xl bg-zinc-50 dark:bg-[#111115] border border-zinc-200 dark:border-zinc-800 space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <h1 className="text-xl font-bold font-display text-zinc-900">{activeStream.title}</h1>
-                <div className="mt-1 flex items-center gap-2 text-xs text-zinc-600">
+                <h1 className="text-xl font-bold font-display text-zinc-900 dark:text-white">{activeStream.title}</h1>
+                <div className="mt-1 flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-400">
                   <span className="inline-flex items-center gap-1 text-[#E11D48] font-semibold">
                     <Users className="w-3.5 h-3.5" />
                     <span className="tabular-nums">{formatCount(totalViewers)} watching now</span>
@@ -184,9 +184,9 @@ export function LivePage({
                   <MediaImage
                     src={activeStream.creatorAvatar}
                     alt={activeStream.creatorName}
-                    className="w-9 h-9 rounded-full object-cover border border-zinc-200"
+                    className="w-9 h-9 rounded-full object-cover border border-zinc-200 dark:border-zinc-700"
                   />
-                  <span className="text-sm font-semibold text-zinc-900 hover:text-[#EA580C]">
+                  <span className="text-sm font-semibold text-zinc-900 dark:text-white hover:text-[#EA580C] dark:hover:text-[#F97316]">
                     {activeStream.creatorName}
                   </span>
                 </button>
@@ -206,7 +206,9 @@ export function LivePage({
                     showToast(next ? 'Subscribed!' : 'Unsubscribed', 'success');
                   }}
                   className={`px-4 py-2 rounded-xl text-xs font-semibold ${
-                    isSubscribed ? 'bg-zinc-200 text-zinc-900 border border-zinc-300' : 'bg-[#E11D48] text-white'
+                    isSubscribed
+                      ? 'bg-zinc-200 dark:bg-[#18181D] text-zinc-900 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700'
+                      : 'bg-[#E11D48] text-white'
                   }`}
                 >
                   {isSubscribed ? 'Subscribed' : 'Subscribe'}
@@ -215,7 +217,7 @@ export function LivePage({
             </div>
 
             {activeStream.description && (
-              <p className="text-sm text-zinc-700 leading-relaxed pt-2 border-t border-zinc-200">
+              <p className="text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed pt-2 border-t border-zinc-200 dark:border-zinc-800">
                 {activeStream.description}
               </p>
             )}
@@ -223,15 +225,15 @@ export function LivePage({
         </div>
 
         {/* Real-Time Live Chat Panel with Native Emoji Picker */}
-        <aside className="lg:col-span-4 bg-white border border-zinc-200 rounded-xl flex flex-col h-[540px] overflow-hidden shadow-sm relative">
-          <div className="px-4 py-3 border-b border-zinc-200 flex items-center justify-between bg-zinc-50">
-            <span className="text-sm font-bold text-zinc-900">Live Chat</span>
-            <span className="text-xs text-zinc-500 tabular-nums">{chatMessages.length} messages</span>
+        <aside className="lg:col-span-4 bg-white dark:bg-[#111115] border border-zinc-200 dark:border-zinc-800 rounded-xl flex flex-col h-[540px] overflow-hidden shadow-sm relative">
+          <div className="px-4 py-3 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between bg-zinc-50 dark:bg-[#141418]">
+            <span className="text-sm font-bold text-zinc-900 dark:text-white">Live Chat</span>
+            <span className="text-xs text-zinc-500 dark:text-zinc-400 tabular-nums">{chatMessages.length} messages</span>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-white">
+          <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-white dark:bg-[#111115]">
             {chatMessages.length === 0 ? (
-              <div className="text-xs text-zinc-500 text-center py-10">
+              <div className="text-xs text-zinc-500 dark:text-zinc-400 text-center py-10">
                 Welcome to the live chat! Say namaste to {activeStream.creatorName}.
               </div>
             ) : (
@@ -240,27 +242,27 @@ export function LivePage({
                   key={msg.id}
                   className={`text-xs rounded-lg p-2 ${
                     msg.superSupportInr && msg.superSupportInr > 0
-                      ? 'bg-orange-50 border border-orange-200'
-                      : 'bg-zinc-50'
+                      ? 'bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800/50'
+                      : 'bg-zinc-50 dark:bg-[#18181D]'
                   }`}
                 >
                   <div className="flex items-center gap-2">
-                    <span className="font-semibold text-zinc-900">{msg.senderName}</span>
+                    <span className="font-semibold text-zinc-900 dark:text-white">{msg.senderName}</span>
                     {msg.superSupportInr && msg.superSupportInr > 0 ? (
-                      <span className="text-[#EA580C] font-mono font-bold">
+                      <span className="text-[#EA580C] dark:text-[#FDBA74] font-mono font-bold">
                         ₹{msg.superSupportInr} Support
                       </span>
                     ) : null}
                   </div>
-                  <p className="text-zinc-700 mt-0.5 break-words">{msg.text}</p>
+                  <p className="text-zinc-700 dark:text-zinc-300 mt-0.5 break-words">{msg.text}</p>
                 </div>
               ))
             )}
           </div>
 
-          <form onSubmit={handleSendChat} className="p-3 border-t border-zinc-200 space-y-2 bg-zinc-50 relative">
+          <form onSubmit={handleSendChat} className="p-3 border-t border-zinc-200 dark:border-zinc-800 space-y-2 bg-zinc-50 dark:bg-[#141418] relative">
             {showEmojiPicker && (
-              <div className="absolute bottom-24 left-3 right-3 p-2.5 rounded-xl bg-white border border-zinc-200 shadow-2xl grid grid-cols-6 gap-1.5 z-20">
+              <div className="absolute bottom-24 left-3 right-3 p-2.5 rounded-xl bg-white dark:bg-[#18181D] border border-zinc-200 dark:border-zinc-700 shadow-2xl grid grid-cols-6 gap-1.5 z-20">
                 {LIVE_EMOJIS.map((em) => (
                   <button
                     key={em}
@@ -269,7 +271,7 @@ export function LivePage({
                       setChatInput((prev) => `${prev}${em}`);
                       setShowEmojiPicker(false);
                     }}
-                    className="p-1.5 rounded-lg hover:bg-zinc-100 text-base text-center transition-colors"
+                    className="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-base text-center transition-colors"
                   >
                     {em}
                   </button>
@@ -278,8 +280,8 @@ export function LivePage({
             )}
 
             <div className="flex items-center gap-1.5">
-              <HeartHandshake className="w-3.5 h-3.5 text-[#EA580C] shrink-0" />
-              <span className="text-[11px] text-zinc-600">Super Chat:</span>
+              <HeartHandshake className="w-3.5 h-3.5 text-[#EA580C] dark:text-[#F97316] shrink-0" />
+              <span className="text-[11px] text-zinc-600 dark:text-zinc-400">Super Chat:</span>
               {[0, 50, 100, 500].map((amt) => (
                 <button
                   key={amt}
@@ -288,7 +290,7 @@ export function LivePage({
                   className={`px-2 py-0.5 rounded text-[11px] font-mono ${
                     superAmount === amt
                       ? 'bg-[#F97316] text-white'
-                      : 'bg-white border border-zinc-300 text-zinc-700 hover:bg-zinc-100'
+                      : 'bg-white dark:bg-[#09090B] border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800'
                   }`}
                 >
                   {amt === 0 ? 'Off' : `₹${amt}`}
@@ -302,8 +304,8 @@ export function LivePage({
                 aria-label="Open emoji picker"
                 className={`px-2.5 py-2 rounded-xl border transition-colors ${
                   showEmojiPicker
-                    ? 'bg-orange-50 border-[#F97316] text-[#EA580C]'
-                    : 'bg-white border-zinc-300 text-zinc-600 hover:text-zinc-900'
+                    ? 'bg-orange-50 dark:bg-orange-950/40 border-[#F97316] text-[#EA580C] dark:text-[#FDBA74]'
+                    : 'bg-white dark:bg-[#09090B] border-zinc-300 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
                 }`}
               >
                 <Smile className="w-4 h-4" />
@@ -314,7 +316,7 @@ export function LivePage({
                 value={chatInput}
                 onChange={(e) => setChatInput(e.target.value)}
                 placeholder={user ? 'Chat live...' : 'Sign in to chat'}
-                className="flex-1 px-3 py-2 rounded-xl bg-white border border-zinc-300 text-xs text-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-[#E11D48]"
+                className="flex-1 px-3 py-2 rounded-xl bg-white dark:bg-[#09090B] border border-zinc-300 dark:border-zinc-700 text-xs text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none focus:border-[#E11D48]"
               />
               <button
                 type="submit"

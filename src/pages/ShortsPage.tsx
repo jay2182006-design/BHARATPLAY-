@@ -110,7 +110,7 @@ export function ShortsPage({
   if (!currentShort) {
     return (
       <div className="p-12 text-center space-y-4">
-        <p className="text-zinc-600">No Bharat Shorts published yet.</p>
+        <p className="text-zinc-600 dark:text-zinc-400">No Bharat Shorts published yet.</p>
         <button
           type="button"
           onClick={onOpenUploadShort}
@@ -190,14 +190,14 @@ export function ShortsPage({
       <button
         type="button"
         onClick={onOpenUploadShort}
-        className="absolute top-4 right-4 z-20 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-zinc-50 border border-zinc-200 text-xs font-semibold text-zinc-900 shadow-md"
+        className="absolute top-4 right-4 z-20 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white dark:bg-[#141418] hover:bg-zinc-50 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-xs font-semibold text-zinc-900 dark:text-white shadow-md"
       >
-        <Plus className="w-4 h-4 text-[#EA580C]" />
+        <Plus className="w-4 h-4 text-[#EA580C] dark:text-[#F97316]" />
         <span>Upload Short</span>
       </button>
 
       {/* Vertical 9:16 Viewport */}
-      <div className="relative h-full max-h-[760px] aspect-[9/16] bg-black rounded-2xl overflow-hidden border border-zinc-200 shadow-2xl flex items-center justify-center">
+      <div className="relative h-full max-h-[760px] aspect-[9/16] bg-black rounded-2xl overflow-hidden border border-zinc-200 dark:border-zinc-800 shadow-2xl flex items-center justify-center">
         <video
           ref={videoRef}
           src={currentShort.videoUrl}
@@ -326,18 +326,18 @@ export function ShortsPage({
           type="button"
           onClick={goPrev}
           aria-label="Previous Short"
-          className="w-11 h-11 rounded-full bg-white hover:bg-zinc-50 border border-zinc-200 flex items-center justify-center text-zinc-900 shadow-sm"
+          className="w-11 h-11 rounded-full bg-white dark:bg-[#141418] hover:bg-zinc-50 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center text-zinc-900 dark:text-white shadow-sm"
         >
           <ChevronUp className="w-5 h-5" />
         </button>
-        <div className="text-center text-[11px] font-mono tabular-nums text-zinc-500">
+        <div className="text-center text-[11px] font-mono tabular-nums text-zinc-500 dark:text-zinc-400">
           {(activeIdx % shorts.length) + 1}/{shorts.length}
         </div>
         <button
           type="button"
           onClick={goNext}
           aria-label="Next Short"
-          className="w-11 h-11 rounded-full bg-white hover:bg-zinc-50 border border-zinc-200 flex items-center justify-center text-zinc-900 shadow-sm"
+          className="w-11 h-11 rounded-full bg-white dark:bg-[#141418] hover:bg-zinc-50 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center text-zinc-900 dark:text-white shadow-sm"
         >
           <ChevronDown className="w-5 h-5" />
         </button>
@@ -345,33 +345,33 @@ export function ShortsPage({
 
       {/* Comments Drawer */}
       {commentsOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4">
-          <div className="w-full max-w-md bg-white border border-zinc-200 rounded-t-3xl md:rounded-2xl p-5 space-y-4 max-h-[75vh] flex flex-col shadow-2xl text-zinc-900">
+        <div className="fixed inset-0 z-50 bg-black/50 dark:bg-black/70 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4">
+          <div className="w-full max-w-md bg-white dark:bg-[#111115] border border-zinc-200 dark:border-zinc-800 rounded-t-3xl md:rounded-2xl p-5 space-y-4 max-h-[75vh] flex flex-col shadow-2xl text-zinc-900 dark:text-white">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-zinc-900">Comments ({comments.length})</h3>
-              <button type="button" onClick={() => setCommentsOpen(false)} className="text-zinc-500 hover:text-zinc-900">
+              <h3 className="text-sm font-bold text-zinc-900 dark:text-white">Comments ({comments.length})</h3>
+              <button type="button" onClick={() => setCommentsOpen(false)} className="text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white">
                 <X className="w-5 h-5" />
               </button>
             </div>
             <div className="flex-1 overflow-y-auto space-y-3">
               {comments.length === 0 ? (
-                <p className="text-xs text-zinc-500 text-center py-6">No comments yet.</p>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 text-center py-6">No comments yet.</p>
               ) : (
                 comments.map((c) => (
                   <div key={c.id} className="text-xs space-y-0.5">
-                    <span className="font-semibold text-zinc-900">{c.authorName}</span>
-                    <p className="text-zinc-700">{c.text}</p>
+                    <span className="font-semibold text-zinc-900 dark:text-white">{c.authorName}</span>
+                    <p className="text-zinc-700 dark:text-zinc-300">{c.text}</p>
                   </div>
                 ))
               )}
             </div>
-            <form onSubmit={handleCommentSubmit} className="flex gap-2 pt-2 border-t border-zinc-200">
+            <form onSubmit={handleCommentSubmit} className="flex gap-2 pt-2 border-t border-zinc-200 dark:border-zinc-800">
               <input
                 type="text"
                 value={commentText}
                 onChange={(e) => setCommentText(e.target.value)}
                 placeholder="Write a comment..."
-                className="flex-1 px-3 py-2 rounded-xl bg-white border border-zinc-300 text-xs text-zinc-900"
+                className="flex-1 px-3 py-2 rounded-xl bg-white dark:bg-[#09090B] border border-zinc-300 dark:border-zinc-700 text-xs text-zinc-900 dark:text-white"
               />
               <button type="submit" className="px-3.5 py-2 rounded-xl bg-[#E11D48] text-xs font-semibold text-white">
                 Send

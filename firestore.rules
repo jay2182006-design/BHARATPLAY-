@@ -46,6 +46,19 @@ service cloud.firestore {
       );
     }
 
+    // Only call inside get/create/update/delete — NEVER inside allow list (Pillar 8)
+    function hasAdminPerm(perm) {
+      return isCEO() || (
+        isVerifiedUser() &&
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.permissions[perm] == true
+      );
+    }
+
+    function isTargetCEO(userId) {
+      return exists(/databases/$(database)/documents/ceoRoles/$(userId));
+    }
+
     // --- Validation Blueprints ---
     function isValidPublicProfile(data) {
       return data.keys().hasAll(['uid', 'displayName', 'handle', 'isCreator', 'createdAt', 'updatedAt']) &&
@@ -84,17 +97,50 @@ service cloud.firestore {
       return data.keys().hasAll(['uid', 'email', 'role', 'updatedAt']) &&
         data.keys().hasOnly([
           'uid', 'email', 'role', 'monetizationEnabled', 'estimatedEarningsInr',
-          'upiId', 'notificationsEnabled', 'suspended', 'suspensionReason', 'updatedAt'
+          'availableBalanceInr', 'pendingBalanceInr', 'lifetimeEarningsInr',
+          'monetizationTermsAcceptedAt', 'upiId', 'notificationsEnabled', 'themePreference',
+          'suspended', 'suspensionReason', 'updatedAt'
         ]) &&
         isValidId(data.uid) &&
         data.email is string && data.email.size() >= 3 && data.email.size() <= 160 &&
         data.role in ['viewer', 'creator', 'admin', 'ceo'] &&
         (!('monetizationEnabled' in data) || data.monetizationEnabled is bool) &&
         (!('estimatedEarningsInr' in data) || (data.estimatedEarningsInr is number && data.estimatedEarningsInr >= 0)) &&
+        (!('availableBalanceInr' in data) || (data.availableBalanceInr is number && data.availableBalanceInr >= 0)) &&
+        (!('pendingBalanceInr' in data) || (data.pendingBalanceInr is number && data.pendingBalanceInr >= 0)) &&
+        (!('lifetimeEarningsInr' in data) || (data.lifetimeEarningsInr is number && data.lifetimeEarningsInr >= 0)) &&
+        (!('monetizationTermsAcceptedAt' in data) || (data.monetizationTermsAcceptedAt is string && data.monetizationTermsAcceptedAt.size() <= 80)) &&
         (!('upiId' in data) || (data.upiId is string && data.upiId.size() <= 100)) &&
         (!('notificationsEnabled' in data) || data.notificationsEnabled is bool) &&
+        (!('themePreference' in data) || data.themePreference in ['dark', 'light']) &&
         (!('suspended' in data) || data.suspended is bool) &&
         (!('suspensionReason' in data) || (data.suspensionReason is string && data.suspensionReason.size() <= 500)) &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidAdminPermissions(perms) {
+      return perms is map &&
+        perms.keys().hasAll(['moderateVideos', 'resolveReports', 'manageCreators', 'manageCompetitions', 'manageAnnouncements', 'manageCategories']) &&
+        perms.keys().hasOnly(['moderateVideos', 'resolveReports', 'manageCreators', 'manageCompetitions', 'manageAnnouncements', 'manageCategories', 'manageMonetization']) &&
+        perms.moderateVideos is bool &&
+        perms.resolveReports is bool &&
+        perms.manageCreators is bool &&
+        perms.manageCompetitions is bool &&
+        perms.manageAnnouncements is bool &&
+        perms.manageCategories is bool &&
+        (!('manageMonetization' in perms) || perms.manageMonetization is bool);
+    }
+
+    function isValidAdminRole(data) {
+      return data.keys().hasAll(['uid', 'permissions', 'grantedBy', 'grantedAt', 'updatedAt']) &&
+        data.keys().hasOnly(['uid', 'displayName', 'email', 'permissions', 'grantedBy', 'notes', 'grantedAt', 'updatedAt']) &&
+        isValidId(data.uid) &&
+        (!('displayName' in data) || (data.displayName is string && data.displayName.size() <= 80)) &&
+        (!('email' in data) || (data.email is string && data.email.size() <= 160)) &&
+        isValidAdminPermissions(data.permissions) &&
+        isValidId(data.grantedBy) &&
+        (!('notes' in data) || (data.notes is string && data.notes.size() <= 300)) &&
+        data.grantedAt is timestamp &&
         data.updatedAt is timestamp;
     }
 
@@ -109,13 +155,14 @@ service cloud.firestore {
     function isValidCeoAuditLog(data) {
       return data.keys().hasAll(['actorUid', 'action', 'targetType', 'targetId', 'reason', 'status', 'createdAt']) &&
         data.keys().hasOnly([
-          'actorUid', 'actorEmail', 'action', 'targetType', 'targetId',
+          'actorUid', 'actorEmail', 'actorRole', 'action', 'targetType', 'targetId',
           'targetLabel', 'reason', 'status', 'details', 'createdAt'
         ]) &&
         isValidId(data.actorUid) &&
         (!('actorEmail' in data) || (data.actorEmail is string && data.actorEmail.size() <= 160)) &&
+        (!('actorRole' in data) || data.actorRole in ['ceo', 'admin']) &&
         data.action is string && data.action.size() >= 2 && data.action.size() <= 80 &&
-        data.targetType in ['user', 'channel', 'video', 'report', 'announcement', 'system'] &&
+        data.targetType in ['user', 'channel', 'video', 'report', 'announcement', 'system', 'admin', 'payout', 'config', 'competition', 'challenge', 'monetization', 'dispute', 'traffic', 'brand', 'payment'] &&
         isValidId(data.targetId) &&
         (!('targetLabel' in data) || (data.targetLabel is string && data.targetLabel.size() <= 150)) &&
         data.reason is string && data.reason.size() >= 2 && data.reason.size() <= 500 &&
@@ -124,12 +171,32 @@ service cloud.firestore {
         data.createdAt is timestamp;
     }
 
+    function isValidCreatorPayout(data) {
+      return data.keys().hasAll(['creatorId', 'creatorName', 'upiId', 'amountInr', 'status', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly([
+          'creatorId', 'creatorName', 'creatorHandle', 'upiId', 'amountInr',
+          'periodLabel', 'status', 'notes', 'processedByUid', 'createdAt', 'updatedAt'
+        ]) &&
+        isValidId(data.creatorId) &&
+        data.creatorName is string && data.creatorName.size() >= 1 && data.creatorName.size() <= 80 &&
+        (!('creatorHandle' in data) || (data.creatorHandle is string && data.creatorHandle.size() <= 40)) &&
+        data.upiId is string && data.upiId.size() >= 3 && data.upiId.size() <= 100 &&
+        data.amountInr is number && data.amountInr >= 100 && data.amountInr <= 5000000 &&
+        (!('periodLabel' in data) || (data.periodLabel is string && data.periodLabel.size() <= 60)) &&
+        data.status in ['pending', 'approved', 'paid', 'rejected'] &&
+        (!('notes' in data) || (data.notes is string && data.notes.size() <= 300)) &&
+        (!('processedByUid' in data) || (data.processedByUid is string && data.processedByUid.size() <= 128)) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
     function isValidVideo(data) {
       return data.keys().hasAll(['creatorId', 'creatorName', 'title', 'videoUrl', 'type', 'category', 'language', 'status', 'createdAt', 'updatedAt']) &&
         data.keys().hasOnly([
           'creatorId', 'creatorName', 'creatorAvatar', 'title', 'description',
           'videoUrl', 'thumbnailUrl', 'type', 'category', 'language',
           'durationSeconds', 'musicTrack', 'challengeId', 'tags', 'chapters',
+          'accessType', 'priceInr', 'adsEnabled', 'adEligibility',
           'viewsCount', 'uniqueViewersCount', 'totalWatchSeconds', 'likesCount',
           'dislikesCount', 'commentsCount', 'sharesCount',
           'status', 'removalReason', 'removedBy',
@@ -151,6 +218,10 @@ service cloud.firestore {
         (!('challengeId' in data) || (data.challengeId is string && data.challengeId.size() <= 128)) &&
         (!('tags' in data) || (data.tags is list && data.tags.size() <= 10 && (data.tags.size() == 0 || data.tags[0] is string))) &&
         (!('chapters' in data) || (data.chapters is list && data.chapters.size() <= 25 && (data.chapters.size() == 0 || data.chapters[0] is map))) &&
+        (!('accessType' in data) || data.accessType in ['free', 'members_only', 'paid']) &&
+        (!('priceInr' in data) || (data.priceInr is number && data.priceInr >= 0 && data.priceInr <= 50000)) &&
+        (!('adsEnabled' in data) || data.adsEnabled is bool) &&
+        (!('adEligibility' in data) || data.adEligibility in ['eligible', 'limited', 'ineligible']) &&
         (!('viewsCount' in data) || (data.viewsCount is number && data.viewsCount >= 0)) &&
         (!('uniqueViewersCount' in data) || (data.uniqueViewersCount is number && data.uniqueViewersCount >= 0)) &&
         (!('totalWatchSeconds' in data) || (data.totalWatchSeconds is number && data.totalWatchSeconds >= 0)) &&
@@ -260,13 +331,16 @@ service cloud.firestore {
 
     function isValidCreatorSupport(data) {
       return data.keys().hasAll(['supporterId', 'creatorId', 'amountInr', 'createdAt']) &&
-        data.keys().hasOnly(['supporterId', 'supporterName', 'creatorId', 'creatorName', 'amountInr', 'message', 'createdAt']) &&
+        data.keys().hasOnly(['supporterId', 'supporterName', 'creatorId', 'creatorName', 'amountInr', 'message', 'paymentOrderId', 'paymentVerified', 'status', 'createdAt']) &&
         isValidId(data.supporterId) &&
         (!('supporterName' in data) || (data.supporterName is string && data.supporterName.size() <= 80)) &&
         isValidId(data.creatorId) &&
         (!('creatorName' in data) || (data.creatorName is string && data.creatorName.size() <= 80)) &&
         data.amountInr is number && data.amountInr >= 10 && data.amountInr <= 50000 &&
         (!('message' in data) || (data.message is string && data.message.size() <= 280)) &&
+        (!('paymentOrderId' in data) || (data.paymentOrderId is string && data.paymentOrderId.size() <= 128)) &&
+        (!('paymentVerified' in data) || data.paymentVerified is bool) &&
+        (!('status' in data) || data.status in ['pending_verification', 'verified', 'rejected', 'refunded']) &&
         data.createdAt is timestamp;
     }
 
@@ -410,12 +484,241 @@ service cloud.firestore {
 
     function isValidPlatformConfig(data) {
       return data.keys().hasAll(['categories', 'languages', 'earlyCreatorBoostEnabled', 'creatorRevenueSharePercent', 'updatedAt']) &&
-        data.keys().hasOnly(['categories', 'languages', 'earlyCreatorBoostEnabled', 'creatorRevenueSharePercent', 'maintenanceMode', 'updatedAt']) &&
+        data.keys().hasOnly([
+          'categories', 'languages', 'earlyCreatorBoostEnabled', 'creatorRevenueSharePercent',
+          'adSharePercent', 'membershipSharePercent', 'supportSharePercent', 'paidVideoSharePercent',
+          'paymentGatewayMode', 'minPayoutInr', 'maintenanceMode', 'updatedAt'
+        ]) &&
         data.categories is list && data.categories.size() <= 20 && (data.categories.size() == 0 || data.categories[0] is string) &&
         data.languages is list && data.languages.size() <= 20 && (data.languages.size() == 0 || data.languages[0] is string) &&
         data.earlyCreatorBoostEnabled is bool &&
         data.creatorRevenueSharePercent is number && data.creatorRevenueSharePercent >= 0 && data.creatorRevenueSharePercent <= 100 &&
+        (!('adSharePercent' in data) || (data.adSharePercent is number && data.adSharePercent >= 0 && data.adSharePercent <= 100)) &&
+        (!('membershipSharePercent' in data) || (data.membershipSharePercent is number && data.membershipSharePercent >= 0 && data.membershipSharePercent <= 100)) &&
+        (!('supportSharePercent' in data) || (data.supportSharePercent is number && data.supportSharePercent >= 0 && data.supportSharePercent <= 100)) &&
+        (!('paidVideoSharePercent' in data) || (data.paidVideoSharePercent is number && data.paidVideoSharePercent >= 0 && data.paidVideoSharePercent <= 100)) &&
+        (!('paymentGatewayMode' in data) || data.paymentGatewayMode in ['unconfigured', 'test', 'live']) &&
+        (!('minPayoutInr' in data) || (data.minPayoutInr is number && data.minPayoutInr >= 100 && data.minPayoutInr <= 50000)) &&
         (!('maintenanceMode' in data) || data.maintenanceMode is bool) &&
+        data.updatedAt is timestamp;
+    }
+
+    // --- Monetization Validation Blueprints ---
+    function isValidAdRevenueRecord(data) {
+      return data.keys().hasAll(['videoId', 'videoTitle', 'creatorId', 'creatorName', 'periodLabel', 'validImpressions', 'invalidImpressionsBlocked', 'grossAdRevenueInr', 'creatorSharePercent', 'creatorNetInr', 'status', 'createdAt']) &&
+        data.keys().hasOnly(['videoId', 'videoTitle', 'creatorId', 'creatorName', 'periodLabel', 'validImpressions', 'invalidImpressionsBlocked', 'grossAdRevenueInr', 'creatorSharePercent', 'creatorNetInr', 'status', 'notes', 'createdAt']) &&
+        isValidId(data.videoId) &&
+        data.videoTitle is string && data.videoTitle.size() >= 1 && data.videoTitle.size() <= 150 &&
+        isValidId(data.creatorId) &&
+        data.creatorName is string && data.creatorName.size() >= 1 && data.creatorName.size() <= 80 &&
+        data.periodLabel is string && data.periodLabel.size() >= 1 && data.periodLabel.size() <= 60 &&
+        data.validImpressions is number && data.validImpressions >= 0 &&
+        data.invalidImpressionsBlocked is number && data.invalidImpressionsBlocked >= 0 &&
+        data.grossAdRevenueInr is number && data.grossAdRevenueInr >= 0 &&
+        data.creatorSharePercent is number && data.creatorSharePercent >= 0 && data.creatorSharePercent <= 100 &&
+        data.creatorNetInr is number && data.creatorNetInr >= 0 &&
+        data.status in ['pending', 'verified', 'invalidated'] &&
+        (!('notes' in data) || (data.notes is string && data.notes.size() <= 300)) &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidMembershipPlan(data) {
+      return data.keys().hasAll(['creatorId', 'creatorName', 'name', 'tierLevel', 'priceInr', 'perks', 'isActive', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['creatorId', 'creatorName', 'name', 'tierLevel', 'priceInr', 'perks', 'isActive', 'createdAt', 'updatedAt']) &&
+        isValidId(data.creatorId) &&
+        data.creatorName is string && data.creatorName.size() >= 1 && data.creatorName.size() <= 80 &&
+        data.name is string && data.name.size() >= 2 && data.name.size() <= 60 &&
+        data.tierLevel is number && data.tierLevel >= 1 && data.tierLevel <= 10 &&
+        data.priceInr is number && data.priceInr >= 29 && data.priceInr <= 50000 &&
+        data.perks is string && data.perks.size() >= 4 && data.perks.size() <= 400 &&
+        data.isActive is bool &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidCreatorMembership(data) {
+      return data.keys().hasAll(['planId', 'planName', 'creatorId', 'creatorName', 'memberId', 'memberName', 'priceInr', 'status', 'paymentVerified', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['planId', 'planName', 'creatorId', 'creatorName', 'memberId', 'memberName', 'priceInr', 'status', 'paymentOrderId', 'paymentVerified', 'renewsAt', 'createdAt', 'updatedAt']) &&
+        isValidId(data.planId) &&
+        data.planName is string && data.planName.size() >= 1 && data.planName.size() <= 60 &&
+        isValidId(data.creatorId) &&
+        data.creatorName is string && data.creatorName.size() >= 1 && data.creatorName.size() <= 80 &&
+        isValidId(data.memberId) &&
+        data.memberName is string && data.memberName.size() >= 1 && data.memberName.size() <= 80 &&
+        data.priceInr is number && data.priceInr >= 29 && data.priceInr <= 50000 &&
+        data.status in ['pending', 'active', 'cancelled', 'expired', 'rejected'] &&
+        (!('paymentOrderId' in data) || (data.paymentOrderId is string && data.paymentOrderId.size() <= 128)) &&
+        data.paymentVerified is bool &&
+        (!('renewsAt' in data) || (data.renewsAt is string && data.renewsAt.size() <= 60)) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidBrandCampaign(data) {
+      return data.keys().hasAll(['brandName', 'brandId', 'title', 'description', 'budgetInr', 'category', 'deliverables', 'deadline', 'status', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['brandName', 'brandId', 'title', 'description', 'budgetInr', 'category', 'deliverables', 'deadline', 'status', 'createdAt', 'updatedAt']) &&
+        data.brandName is string && data.brandName.size() >= 2 && data.brandName.size() <= 80 &&
+        isValidId(data.brandId) &&
+        data.title is string && data.title.size() >= 3 && data.title.size() <= 120 &&
+        data.description is string && data.description.size() >= 5 && data.description.size() <= 1000 &&
+        data.budgetInr is number && data.budgetInr >= 500 && data.budgetInr <= 50000000 &&
+        data.category is string && data.category.size() >= 1 && data.category.size() <= 50 &&
+        data.deliverables is string && data.deliverables.size() >= 2 && data.deliverables.size() <= 500 &&
+        data.deadline is string && data.deadline.size() >= 2 && data.deadline.size() <= 40 &&
+        data.status in ['open', 'in_progress', 'completed', 'closed'] &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidBrandApplication(data) {
+      return data.keys().hasAll(['campaignId', 'campaignTitle', 'brandName', 'creatorId', 'creatorName', 'pitch', 'proposedFeeInr', 'status', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['campaignId', 'campaignTitle', 'brandName', 'creatorId', 'creatorName', 'pitch', 'proposedFeeInr', 'status', 'deliverableUrl', 'reviewNotes', 'createdAt', 'updatedAt']) &&
+        isValidId(data.campaignId) &&
+        data.campaignTitle is string && data.campaignTitle.size() >= 1 && data.campaignTitle.size() <= 120 &&
+        data.brandName is string && data.brandName.size() >= 1 && data.brandName.size() <= 80 &&
+        isValidId(data.creatorId) &&
+        data.creatorName is string && data.creatorName.size() >= 1 && data.creatorName.size() <= 80 &&
+        data.pitch is string && data.pitch.size() >= 5 && data.pitch.size() <= 800 &&
+        data.proposedFeeInr is number && data.proposedFeeInr >= 100 && data.proposedFeeInr <= 50000000 &&
+        data.status in ['applied', 'shortlisted', 'approved', 'delivered', 'paid', 'rejected'] &&
+        (!('deliverableUrl' in data) || (data.deliverableUrl is string && data.deliverableUrl.size() <= 500)) &&
+        (!('reviewNotes' in data) || (data.reviewNotes is string && data.reviewNotes.size() <= 300)) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidAffiliateLink(data) {
+      return data.keys().hasAll(['creatorId', 'creatorName', 'code', 'targetUrl', 'productTitle', 'merchantName', 'commissionPercent', 'clicksCount', 'validClicksCount', 'conversionsCount', 'earnedInr', 'isActive', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['creatorId', 'creatorName', 'code', 'targetUrl', 'productTitle', 'merchantName', 'commissionPercent', 'clicksCount', 'validClicksCount', 'conversionsCount', 'earnedInr', 'isActive', 'createdAt', 'updatedAt']) &&
+        isValidId(data.creatorId) &&
+        data.creatorName is string && data.creatorName.size() >= 1 && data.creatorName.size() <= 80 &&
+        data.code is string && data.code.size() >= 4 && data.code.size() <= 32 &&
+        data.targetUrl is string && data.targetUrl.size() >= 8 && data.targetUrl.size() <= 500 &&
+        data.productTitle is string && data.productTitle.size() >= 2 && data.productTitle.size() <= 120 &&
+        data.merchantName is string && data.merchantName.size() >= 2 && data.merchantName.size() <= 80 &&
+        data.commissionPercent is number && data.commissionPercent >= 1 && data.commissionPercent <= 50 &&
+        data.clicksCount is number && data.clicksCount >= 0 &&
+        data.validClicksCount is number && data.validClicksCount >= 0 &&
+        data.conversionsCount is number && data.conversionsCount >= 0 &&
+        data.earnedInr is number && data.earnedInr >= 0 &&
+        data.isActive is bool &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidAffiliateEvent(data) {
+      return data.keys().hasAll(['linkId', 'code', 'creatorId', 'eventType', 'saleAmountInr', 'commissionInr', 'isInvalidTraffic', 'status', 'createdAt']) &&
+        data.keys().hasOnly(['linkId', 'code', 'creatorId', 'eventType', 'orderRef', 'saleAmountInr', 'commissionInr', 'isInvalidTraffic', 'status', 'createdAt']) &&
+        isValidId(data.linkId) &&
+        data.code is string && data.code.size() >= 4 && data.code.size() <= 32 &&
+        isValidId(data.creatorId) &&
+        data.eventType in ['click', 'conversion'] &&
+        (!('orderRef' in data) || (data.orderRef is string && data.orderRef.size() <= 128)) &&
+        data.saleAmountInr is number && data.saleAmountInr >= 0 &&
+        data.commissionInr is number && data.commissionInr >= 0 &&
+        data.isInvalidTraffic is bool &&
+        data.status in ['recorded', 'pending', 'verified', 'rejected'] &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidVideoPurchase(data) {
+      return data.keys().hasAll(['videoId', 'videoTitle', 'creatorId', 'creatorName', 'buyerId', 'buyerName', 'amountInr', 'creatorNetInr', 'platformFeeInr', 'paymentVerified', 'status', 'createdAt']) &&
+        data.keys().hasOnly(['videoId', 'videoTitle', 'creatorId', 'creatorName', 'buyerId', 'buyerName', 'amountInr', 'creatorNetInr', 'platformFeeInr', 'paymentOrderId', 'paymentVerified', 'status', 'createdAt']) &&
+        isValidId(data.videoId) &&
+        data.videoTitle is string && data.videoTitle.size() >= 1 && data.videoTitle.size() <= 150 &&
+        isValidId(data.creatorId) &&
+        data.creatorName is string && data.creatorName.size() >= 1 && data.creatorName.size() <= 80 &&
+        isValidId(data.buyerId) &&
+        data.buyerName is string && data.buyerName.size() >= 1 && data.buyerName.size() <= 80 &&
+        data.amountInr is number && data.amountInr >= 10 && data.amountInr <= 50000 &&
+        data.creatorNetInr is number && data.creatorNetInr >= 0 &&
+        data.platformFeeInr is number && data.platformFeeInr >= 0 &&
+        (!('paymentOrderId' in data) || (data.paymentOrderId is string && data.paymentOrderId.size() <= 128)) &&
+        data.paymentVerified is bool &&
+        data.status in ['pending_verification', 'verified', 'rejected', 'refunded', 'disputed'] &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidMonetizationTransaction(data) {
+      return data.keys().hasAll(['creatorId', 'source', 'grossInr', 'platformFeeInr', 'netCreatorInr', 'status', 'gatewayVerified', 'description', 'createdAt']) &&
+        data.keys().hasOnly(['creatorId', 'counterpartyId', 'counterpartyName', 'source', 'grossInr', 'platformFeeInr', 'netCreatorInr', 'status', 'referenceId', 'gatewayVerified', 'description', 'createdAt']) &&
+        isValidId(data.creatorId) &&
+        (!('counterpartyId' in data) || (data.counterpartyId is string && data.counterpartyId.size() <= 128)) &&
+        (!('counterpartyName' in data) || (data.counterpartyName is string && data.counterpartyName.size() <= 80)) &&
+        data.source in ['ad_revenue', 'membership', 'support', 'brand_connect', 'affiliate', 'paid_video', 'payout', 'adjustment'] &&
+        data.grossInr is number &&
+        data.platformFeeInr is number &&
+        data.netCreatorInr is number &&
+        data.status in ['pending', 'settled', 'held', 'disputed', 'reversed', 'paid'] &&
+        (!('referenceId' in data) || (data.referenceId is string && data.referenceId.size() <= 128)) &&
+        data.gatewayVerified is bool &&
+        data.description is string && data.description.size() >= 2 && data.description.size() <= 300 &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidInvalidTrafficFlag(data) {
+      return data.keys().hasAll(['targetType', 'targetId', 'creatorId', 'creatorName', 'signalType', 'suspiciousCount', 'estimatedImpactInr', 'severity', 'status', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['targetType', 'targetId', 'creatorId', 'creatorName', 'signalType', 'suspiciousCount', 'estimatedImpactInr', 'severity', 'status', 'notes', 'createdAt', 'updatedAt']) &&
+        data.targetType in ['video', 'affiliate', 'creator'] &&
+        isValidId(data.targetId) &&
+        isValidId(data.creatorId) &&
+        data.creatorName is string && data.creatorName.size() >= 1 && data.creatorName.size() <= 80 &&
+        data.signalType is string && data.signalType.size() >= 2 && data.signalType.size() <= 120 &&
+        data.suspiciousCount is number && data.suspiciousCount >= 0 &&
+        data.estimatedImpactInr is number && data.estimatedImpactInr >= 0 &&
+        data.severity in ['low', 'medium', 'high'] &&
+        data.status in ['open', 'confirmed_invalid', 'cleared'] &&
+        (!('notes' in data) || (data.notes is string && data.notes.size() <= 400)) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidPaymentDispute(data) {
+      return data.keys().hasAll(['reporterId', 'reporterName', 'creatorId', 'creatorName', 'transactionId', 'amountInr', 'category', 'reason', 'status', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['reporterId', 'reporterName', 'creatorId', 'creatorName', 'transactionId', 'amountInr', 'category', 'reason', 'status', 'resolutionNote', 'createdAt', 'updatedAt']) &&
+        isValidId(data.reporterId) &&
+        data.reporterName is string && data.reporterName.size() >= 1 && data.reporterName.size() <= 80 &&
+        isValidId(data.creatorId) &&
+        data.creatorName is string && data.creatorName.size() >= 1 && data.creatorName.size() <= 80 &&
+        data.transactionId is string && data.transactionId.size() >= 1 && data.transactionId.size() <= 128 &&
+        data.amountInr is number && data.amountInr >= 0 && data.amountInr <= 50000000 &&
+        data.category in ['unauthorized', 'undelivered', 'payout_delay', 'ad_deduction', 'brand_milestone'] &&
+        data.reason is string && data.reason.size() >= 5 && data.reason.size() <= 500 &&
+        data.status in ['open', 'investigating', 'resolved', 'refunded', 'rejected'] &&
+        (!('resolutionNote' in data) || (data.resolutionNote is string && data.resolutionNote.size() <= 400)) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidPaymentTransaction(data) {
+      return data.keys().hasAll(['userId', 'userName', 'paymentMethod', 'amountInr', 'utrNumber', 'serviceType', 'targetId', 'targetTitle', 'creatorId', 'creatorName', 'status', 'serviceActivated', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly([
+          'userId', 'userName', 'userEmail', 'paymentMethod', 'amountInr', 'utrNumber',
+          'serviceType', 'targetId', 'targetTitle', 'creatorId', 'creatorName', 'serviceRecordId',
+          'note', 'qrCodeImage', 'status', 'serviceActivated', 'rejectionReason',
+          'verifiedByUid', 'verifiedByRole', 'verifiedAt', 'createdAt', 'updatedAt'
+        ]) &&
+        isValidId(data.userId) &&
+        data.userName is string && data.userName.size() >= 1 && data.userName.size() <= 80 &&
+        (!('userEmail' in data) || (data.userEmail is string && data.userEmail.size() <= 160)) &&
+        data.paymentMethod in ['PhonePe', 'Google Pay', 'Paytm', 'UPI', 'Other UPI Apps'] &&
+        data.amountInr is number && data.amountInr >= 1 && data.amountInr <= 500000 &&
+        data.utrNumber is string && data.utrNumber.size() >= 6 && data.utrNumber.size() <= 40 &&
+        data.serviceType in ['paid_video', 'membership', 'support', 'creator_boost_pass', 'platform_service'] &&
+        isValidId(data.targetId) &&
+        data.targetTitle is string && data.targetTitle.size() >= 1 && data.targetTitle.size() <= 150 &&
+        isValidId(data.creatorId) &&
+        data.creatorName is string && data.creatorName.size() >= 1 && data.creatorName.size() <= 80 &&
+        (!('serviceRecordId' in data) || (data.serviceRecordId is string && data.serviceRecordId.size() <= 128)) &&
+        (!('note' in data) || (data.note is string && data.note.size() <= 280)) &&
+        (!('qrCodeImage' in data) || (data.qrCodeImage is string && data.qrCodeImage.size() <= 200)) &&
+        data.status in ['pending_verification', 'approved', 'rejected'] &&
+        data.serviceActivated is bool &&
+        (!('rejectionReason' in data) || (data.rejectionReason is string && data.rejectionReason.size() <= 300)) &&
+        (!('verifiedByUid' in data) || (data.verifiedByUid is string && data.verifiedByUid.size() <= 128)) &&
+        (!('verifiedByRole' in data) || data.verifiedByRole in ['ceo', 'admin']) &&
+        (!('verifiedAt' in data) || (data.verifiedAt is string && data.verifiedAt.size() <= 60)) &&
+        data.createdAt is timestamp &&
         data.updatedAt is timestamp;
     }
 
@@ -426,29 +729,35 @@ service cloud.firestore {
       allow list: if resource.data.isCreator == true || isAdmin() || isCEO();
       allow create: if isValidId(userId) && isVerifiedUser() &&
         isValidPublicProfile(incoming()) &&
-        (isAdmin() || incoming().uid == request.auth.uid) &&
+        (isCEO() || incoming().uid == request.auth.uid) &&
         incoming().uid == userId &&
         incoming().createdAt == request.time &&
         incoming().updatedAt == request.time &&
-        (!('isVerified' in incoming()) || incoming().isVerified == false || isAdmin()) &&
-        (!('isFeatured' in incoming()) || incoming().isFeatured == false || isAdmin()) &&
-        (!('boostEnabled' in incoming()) || incoming().boostEnabled == false || isAdmin()) &&
+        (!('isVerified' in incoming()) || incoming().isVerified == false || isCEO()) &&
+        (!('isFeatured' in incoming()) || incoming().isFeatured == false || isCEO()) &&
+        (!('boostEnabled' in incoming()) || incoming().boostEnabled == false || isCEO()) &&
         (!('accountStatus' in incoming()) || incoming().accountStatus == 'active' || isCEO()) &&
         (!('channelStatus' in incoming()) || incoming().channelStatus == 'active' || isCEO());
 
       allow update: if isValidId(userId) && isVerifiedUser() && isValidPublicProfile(incoming()) && (
         isCEO() ||
         (
-          isAdmin() &&
-          (!('accountStatus' in incoming()) || !('accountStatus' in existing()) || incoming().accountStatus == existing().accountStatus) &&
-          (!('channelStatus' in incoming()) || !('channelStatus' in existing()) || incoming().channelStatus == existing().channelStatus)
-        ) ||
-        (
-          isOwner(userId) &&
+          hasAdminPerm('manageCreators') &&
+          !isTargetCEO(userId) &&
           incoming().uid == existing().uid &&
           incoming().createdAt == existing().createdAt &&
           incoming().updatedAt == request.time &&
-          incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'handle', 'bio', 'avatarUrl', 'bannerUrl', 'isCreator', 'isEarlyCreator', 'preferredLanguage', 'leagueCategory', 'updatedAt'])
+          incoming().diff(existing()).affectedKeys().hasOnly(['isVerified', 'isFeatured', 'boostEnabled', 'isEarlyCreator', 'leagueCategory', 'rewardTier', 'updatedAt'])
+        ) ||
+        (
+          isOwner(userId) &&
+          existing().accountStatus != 'suspended' &&
+          existing().accountStatus != 'deleted' &&
+          incoming().uid == existing().uid &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().updatedAt == request.time &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'handle', 'bio', 'avatarUrl', 'bannerUrl', 'isCreator', 'isEarlyCreator', 'preferredLanguage', 'leagueCategory', 'updatedAt']) &&
+          (incoming().isCreator == existing().isCreator || (existing().channelStatus != 'suspended' && existing().channelStatus != 'deleted'))
         ) ||
         (
           incoming().uid == existing().uid &&
@@ -467,8 +776,8 @@ service cloud.firestore {
       allow delete: if isValidId(userId) && isCEO();
 
       match /private/{docId} {
-        allow get: if isValidId(userId) && isValidId(docId) && (isOwner(userId) || isAdmin() || isCEO());
-        allow list: if isOwner(userId) || isAdmin() || isCEO();
+        allow get: if isValidId(userId) && isValidId(docId) && (isOwner(userId) || isCEO());
+        allow list: if isOwner(userId) || isCEO();
         allow create: if isValidId(userId) && isValidId(docId) && isVerifiedUser() &&
           isValidPrivateAccount(incoming()) &&
           (
@@ -477,24 +786,24 @@ service cloud.firestore {
               incoming().uid == request.auth.uid &&
               incoming().uid == userId &&
               incoming().updatedAt == request.time &&
-              incoming().role in ['viewer', 'creator']
+              incoming().role in ['viewer', 'creator'] &&
+              (!('monetizationEnabled' in incoming()) || incoming().monetizationEnabled == false) &&
+              (!('estimatedEarningsInr' in incoming()) || incoming().estimatedEarningsInr == 0) &&
+              (!('availableBalanceInr' in incoming()) || incoming().availableBalanceInr == 0) &&
+              (!('pendingBalanceInr' in incoming()) || incoming().pendingBalanceInr == 0) &&
+              (!('lifetimeEarningsInr' in incoming()) || incoming().lifetimeEarningsInr == 0) &&
+              (!('suspended' in incoming()) || incoming().suspended == false)
             )
           );
 
         allow update: if isValidId(userId) && isValidId(docId) && isVerifiedUser() && isValidPrivateAccount(incoming()) && (
           isCEO() ||
           (
-            isAdmin() &&
-            existing().role != 'ceo' &&
-            incoming().role in ['viewer', 'creator', 'admin']
-          ) ||
-          (
             isOwner(userId) &&
             incoming().uid == existing().uid &&
-            existing().role in ['viewer', 'creator'] &&
-            incoming().role in ['viewer', 'creator'] &&
+            incoming().role == existing().role &&
             incoming().updatedAt == request.time &&
-            incoming().diff(existing()).affectedKeys().hasOnly(['role', 'monetizationEnabled', 'upiId', 'notificationsEnabled', 'updatedAt'])
+            incoming().diff(existing()).affectedKeys().hasOnly(['upiId', 'notificationsEnabled', 'monetizationTermsAcceptedAt', 'themePreference', 'updatedAt'])
           )
         );
         allow delete: if isValidId(userId) && isValidId(docId) && isCEO();
@@ -520,7 +829,7 @@ service cloud.firestore {
       }
 
       match /watchLater/{videoId} {
-        allow get: if isValidId(userId) && isValidId(videoId) && (isOwner(userId) || isAdmin());
+        allow get: if isValidId(userId) && isValidId(videoId) && (isOwner(userId) || isCEO());
         allow list: if isOwner(userId) && resource.data.userId == request.auth.uid;
         allow create: if isValidId(userId) && isValidId(videoId) && isVerifiedUser() &&
           isOwner(userId) &&
@@ -534,9 +843,20 @@ service cloud.firestore {
     }
 
     match /admins/{adminId} {
-      allow get: if isValidId(adminId) && (isAdmin() || isCEO());
-      allow list: if isAdmin() || isCEO();
-      allow create, update, delete: if isValidId(adminId) && isCEO();
+      allow get: if isValidId(adminId) && (isOwner(adminId) || isCEO());
+      allow list: if isCEO();
+      allow create: if isValidId(adminId) && isCEO() &&
+        isValidAdminRole(incoming()) &&
+        incoming().uid == adminId &&
+        incoming().grantedBy == request.auth.uid &&
+        incoming().grantedAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(adminId) && isCEO() &&
+        isValidAdminRole(incoming()) &&
+        incoming().uid == existing().uid &&
+        incoming().grantedAt == existing().grantedAt &&
+        incoming().updatedAt == request.time;
+      allow delete: if isValidId(adminId) && isCEO();
     }
 
     match /ceoRoles/{ceoId} {
@@ -552,11 +872,35 @@ service cloud.firestore {
     match /ceoAuditLogs/{logId} {
       allow get: if isValidId(logId) && isCEO();
       allow list: if isCEO();
-      allow create: if isValidId(logId) && isCEO() &&
+      allow create: if isValidId(logId) && isAdmin() &&
         isValidCeoAuditLog(incoming()) &&
         incoming().actorUid == request.auth.uid &&
-        incoming().createdAt == request.time;
+        incoming().createdAt == request.time &&
+        (isCEO() || incoming().actorRole == 'admin');
       allow update, delete: if false;
+    }
+
+    match /creatorPayouts/{payoutId} {
+      allow get: if isValidId(payoutId) && isSignedIn() && (resource.data.creatorId == request.auth.uid || isCEO());
+      allow list: if isSignedIn() && (resource.data.creatorId == request.auth.uid || isCEO());
+      allow create: if isValidId(payoutId) && isVerifiedUser() &&
+        isValidCreatorPayout(incoming()) &&
+        (
+          isCEO() ||
+          (
+            incoming().creatorId == request.auth.uid &&
+            incoming().status == 'pending' &&
+            !('processedByUid' in incoming())
+          )
+        ) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(payoutId) && isCEO() &&
+        isValidCreatorPayout(incoming()) &&
+        incoming().creatorId == existing().creatorId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time;
+      allow delete: if isValidId(payoutId) && isCEO();
     }
 
     match /videos/{videoId} {
@@ -565,22 +909,36 @@ service cloud.firestore {
 
       allow create: if isValidId(videoId) && isVerifiedUser() &&
         isValidVideo(incoming()) &&
-        (isAdmin() || incoming().creatorId == request.auth.uid) &&
+        (isCEO() || incoming().creatorId == request.auth.uid) &&
         incoming().status == 'published' &&
-        (!('isOriginal' in incoming()) || incoming().isOriginal == false || isAdmin()) &&
+        (!('isOriginal' in incoming()) || incoming().isOriginal == false || isCEO()) &&
+        (!('adEligibility' in incoming()) || incoming().adEligibility == 'eligible' || isCEO()) &&
         incoming().createdAt == request.time &&
         incoming().updatedAt == request.time;
 
       allow update: if isValidId(videoId) && isVerifiedUser() && isValidVideo(incoming()) && (
         isCEO() ||
-        isAdmin() ||
+        (
+          hasAdminPerm('moderateVideos') &&
+          incoming().creatorId == existing().creatorId &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().updatedAt == request.time &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['status', 'removalReason', 'removedBy', 'isTrending', 'isOriginal', 'isEarlyCreatorSpotlight', 'updatedAt'])
+        ) ||
+        (
+          hasAdminPerm('manageMonetization') &&
+          incoming().creatorId == existing().creatorId &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().updatedAt == request.time &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['adEligibility', 'updatedAt'])
+        ) ||
         (
           existing().status != 'removed' &&
           existing().creatorId == request.auth.uid &&
           incoming().creatorId == existing().creatorId &&
           incoming().createdAt == existing().createdAt &&
           incoming().updatedAt == request.time &&
-          incoming().diff(existing()).affectedKeys().hasOnly(['title', 'description', 'thumbnailUrl', 'category', 'language', 'tags', 'chapters', 'musicTrack', 'updatedAt'])
+          incoming().diff(existing()).affectedKeys().hasOnly(['title', 'description', 'thumbnailUrl', 'category', 'language', 'tags', 'chapters', 'musicTrack', 'accessType', 'priceInr', 'adsEnabled', 'updatedAt'])
         ) ||
         (
           existing().status == 'published' &&
@@ -624,7 +982,7 @@ service cloud.firestore {
           incoming().createdAt == request.time &&
           exists(/databases/$(database)/documents/videos/$(videoId));
         allow update: if isValidId(videoId) && isValidId(commentId) && isVerifiedUser() && isValidComment(incoming()) && (
-          isAdmin() ||
+          hasAdminPerm('moderateVideos') ||
           (
             existing().authorId == request.auth.uid &&
             incoming().authorId == existing().authorId &&
@@ -639,7 +997,7 @@ service cloud.firestore {
             incoming().diff(existing()).affectedKeys().hasOnly(['likesCount'])
           )
         );
-        allow delete: if isValidId(videoId) && isValidId(commentId) && isVerifiedUser() && (existing().authorId == request.auth.uid || isAdmin());
+        allow delete: if isValidId(videoId) && isValidId(commentId) && isVerifiedUser() && (existing().authorId == request.auth.uid || hasAdminPerm('moderateVideos'));
       }
 
       match /reactions/{userId} {
@@ -664,26 +1022,26 @@ service cloud.firestore {
     }
 
     match /subscriptions/{subId} {
-      allow get: if isValidId(subId) && isSignedIn() && (resource.data.subscriberId == request.auth.uid || resource.data.creatorId == request.auth.uid || isAdmin());
-      allow list: if isSignedIn() && (resource.data.subscriberId == request.auth.uid || resource.data.creatorId == request.auth.uid || isAdmin());
+      allow get: if isValidId(subId) && isSignedIn() && (resource.data.subscriberId == request.auth.uid || resource.data.creatorId == request.auth.uid || isCEO());
+      allow list: if isSignedIn() && (resource.data.subscriberId == request.auth.uid || resource.data.creatorId == request.auth.uid || isCEO());
       allow create: if isValidId(subId) && isVerifiedUser() &&
         isValidSubscription(incoming()) &&
         incoming().subscriberId == request.auth.uid &&
         incoming().createdAt == request.time;
       allow update: if false;
-      allow delete: if isValidId(subId) && isVerifiedUser() && (existing().subscriberId == request.auth.uid || isAdmin());
+      allow delete: if isValidId(subId) && isVerifiedUser() && (existing().subscriberId == request.auth.uid || isCEO());
     }
 
     match /playlists/{playlistId} {
-      allow get: if isValidId(playlistId) && (resource.data.visibility == 'public' || (isSignedIn() && resource.data.ownerId == request.auth.uid) || isAdmin());
-      allow list: if resource.data.visibility == 'public' || (isSignedIn() && resource.data.ownerId == request.auth.uid) || isAdmin();
+      allow get: if isValidId(playlistId) && (resource.data.visibility == 'public' || (isSignedIn() && resource.data.ownerId == request.auth.uid) || isCEO());
+      allow list: if resource.data.visibility == 'public' || (isSignedIn() && resource.data.ownerId == request.auth.uid) || isCEO();
       allow create: if isValidId(playlistId) && isVerifiedUser() &&
         isValidPlaylist(incoming()) &&
         incoming().ownerId == request.auth.uid &&
         incoming().createdAt == request.time &&
         incoming().updatedAt == request.time;
       allow update: if isValidId(playlistId) && isVerifiedUser() && isValidPlaylist(incoming()) && (
-        isAdmin() ||
+        isCEO() ||
         (
           existing().ownerId == request.auth.uid &&
           incoming().ownerId == existing().ownerId &&
@@ -692,7 +1050,7 @@ service cloud.firestore {
           incoming().diff(existing()).affectedKeys().hasOnly(['title', 'description', 'visibility', 'videoIds', 'thumbnailUrl', 'updatedAt'])
         )
       );
-      allow delete: if isValidId(playlistId) && isVerifiedUser() && (existing().ownerId == request.auth.uid || isAdmin());
+      allow delete: if isValidId(playlistId) && isVerifiedUser() && (existing().ownerId == request.auth.uid || isCEO());
     }
 
     match /communityPosts/{postId} {
@@ -700,10 +1058,10 @@ service cloud.firestore {
       allow list: if resource.data.postType in ['text', 'image', 'poll', 'announcement'];
       allow create: if isValidId(postId) && isVerifiedUser() &&
         isValidCommunityPost(incoming()) &&
-        (isAdmin() || incoming().creatorId == request.auth.uid) &&
+        (isCEO() || incoming().creatorId == request.auth.uid) &&
         incoming().createdAt == request.time;
       allow update: if isValidId(postId) && isVerifiedUser() && isValidCommunityPost(incoming()) && (
-        isAdmin() ||
+        isCEO() ||
         (
           existing().creatorId == request.auth.uid &&
           incoming().creatorId == existing().creatorId &&
@@ -721,23 +1079,34 @@ service cloud.firestore {
           incoming().diff(existing()).affectedKeys().hasOnly(['likesCount'])
         )
       );
-      allow delete: if isValidId(postId) && isVerifiedUser() && (existing().creatorId == request.auth.uid || isAdmin());
+      allow delete: if isValidId(postId) && isVerifiedUser() && (existing().creatorId == request.auth.uid || hasAdminPerm('moderateVideos'));
     }
 
     match /creatorSupports/{supportId} {
-      allow get: if isValidId(supportId) && isSignedIn() && (resource.data.supporterId == request.auth.uid || resource.data.creatorId == request.auth.uid || isAdmin());
-      allow list: if isSignedIn() && (resource.data.supporterId == request.auth.uid || resource.data.creatorId == request.auth.uid || isAdmin());
+      allow get: if isValidId(supportId) && isSignedIn() && (resource.data.supporterId == request.auth.uid || resource.data.creatorId == request.auth.uid || hasAdminPerm('manageMonetization') || isCEO());
+      allow list: if isSignedIn() && (resource.data.supporterId == request.auth.uid || resource.data.creatorId == request.auth.uid || isAdmin() || isCEO());
       allow create: if isValidId(supportId) && isVerifiedUser() &&
         isValidCreatorSupport(incoming()) &&
-        incoming().supporterId == request.auth.uid &&
+        (
+          isCEO() ||
+          (
+            incoming().supporterId == request.auth.uid &&
+            (!('paymentVerified' in incoming()) || incoming().paymentVerified == false) &&
+            (!('status' in incoming()) || incoming().status == 'pending_verification')
+          )
+        ) &&
         incoming().createdAt == request.time;
-      allow update: if false;
-      allow delete: if isValidId(supportId) && isAdmin();
+      allow update: if isValidId(supportId) && (isCEO() || hasAdminPerm('manageMonetization')) &&
+        isValidCreatorSupport(incoming()) &&
+        incoming().supporterId == existing().supporterId &&
+        incoming().creatorId == existing().creatorId &&
+        incoming().createdAt == existing().createdAt;
+      allow delete: if isValidId(supportId) && isCEO();
     }
 
     match /collaborations/{collabId} {
-      allow get: if isValidId(collabId) && (resource.data.status == 'accepted' || (isSignedIn() && (resource.data.senderId == request.auth.uid || resource.data.recipientId == request.auth.uid)) || isAdmin());
-      allow list: if resource.data.status == 'accepted' || (isSignedIn() && (resource.data.senderId == request.auth.uid || resource.data.recipientId == request.auth.uid)) || isAdmin();
+      allow get: if isValidId(collabId) && (resource.data.status == 'accepted' || (isSignedIn() && (resource.data.senderId == request.auth.uid || resource.data.recipientId == request.auth.uid)) || isCEO());
+      allow list: if resource.data.status == 'accepted' || (isSignedIn() && (resource.data.senderId == request.auth.uid || resource.data.recipientId == request.auth.uid)) || isCEO();
       allow create: if isValidId(collabId) && isVerifiedUser() &&
         isValidCollaboration(incoming()) &&
         incoming().senderId == request.auth.uid &&
@@ -746,7 +1115,7 @@ service cloud.firestore {
         incoming().createdAt == request.time &&
         incoming().updatedAt == request.time;
       allow update: if isValidId(collabId) && isVerifiedUser() && isValidCollaboration(incoming()) && (
-        isAdmin() ||
+        isCEO() ||
         (
           existing().recipientId == request.auth.uid &&
           existing().status == 'pending' &&
@@ -758,12 +1127,12 @@ service cloud.firestore {
           incoming().status in ['accepted', 'rejected']
         )
       );
-      allow delete: if isValidId(collabId) && isVerifiedUser() && (existing().senderId == request.auth.uid || isAdmin());
+      allow delete: if isValidId(collabId) && isVerifiedUser() && (existing().senderId == request.auth.uid || isCEO());
     }
 
     match /watchParties/{roomId} {
       allow get: if isValidId(roomId) && isSignedIn();
-      allow list: if resource.data.isPrivate == false || (isSignedIn() && resource.data.hostId == request.auth.uid) || isAdmin();
+      allow list: if resource.data.isPrivate == false || (isSignedIn() && resource.data.hostId == request.auth.uid) || isCEO();
       allow create: if isValidId(roomId) && isVerifiedUser() &&
         isValidWatchParty(incoming()) &&
         incoming().hostId == request.auth.uid &&
@@ -771,7 +1140,7 @@ service cloud.firestore {
         incoming().createdAt == request.time &&
         incoming().updatedAt == request.time;
       allow update: if isValidId(roomId) && isVerifiedUser() && isValidWatchParty(incoming()) && (
-        isAdmin() ||
+        isCEO() ||
         (
           existing().hostId == request.auth.uid &&
           incoming().hostId == existing().hostId &&
@@ -780,7 +1149,7 @@ service cloud.firestore {
           incoming().diff(existing()).affectedKeys().hasOnly(['videoId', 'videoTitle', 'videoUrl', 'thumbnailUrl', 'isPlaying', 'currentTimeSeconds', 'status', 'isPrivate', 'title', 'updatedAt'])
         )
       );
-      allow delete: if isValidId(roomId) && isVerifiedUser() && (existing().hostId == request.auth.uid || isAdmin());
+      allow delete: if isValidId(roomId) && isVerifiedUser() && (existing().hostId == request.auth.uid || isCEO());
 
       match /messages/{messageId} {
         allow get: if isValidId(roomId) && isValidId(messageId) && isSignedIn();
@@ -792,19 +1161,25 @@ service cloud.firestore {
           incoming().createdAt == request.time &&
           exists(/databases/$(database)/documents/watchParties/$(roomId));
         allow update: if false;
-        allow delete: if isValidId(roomId) && isValidId(messageId) && isVerifiedUser() && (existing().senderId == request.auth.uid || isAdmin());
+        allow delete: if isValidId(roomId) && isValidId(messageId) && isVerifiedUser() && (existing().senderId == request.auth.uid || isCEO());
       }
     }
 
     match /liveStreams/{streamId} {
       allow get: if isValidId(streamId);
-      allow list: if resource.data.isLive == true || (isSignedIn() && resource.data.creatorId == request.auth.uid) || isAdmin();
+      allow list: if resource.data.isLive == true || (isSignedIn() && resource.data.creatorId == request.auth.uid) || isAdmin() || isCEO();
       allow create: if isValidId(streamId) && isVerifiedUser() &&
         isValidLiveStream(incoming()) &&
-        (isAdmin() || incoming().creatorId == request.auth.uid) &&
+        (isCEO() || incoming().creatorId == request.auth.uid) &&
         incoming().startedAt == request.time;
       allow update: if isValidId(streamId) && isVerifiedUser() && isValidLiveStream(incoming()) && (
-        isAdmin() ||
+        isCEO() ||
+        (
+          hasAdminPerm('moderateVideos') &&
+          incoming().creatorId == existing().creatorId &&
+          incoming().startedAt == existing().startedAt &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['isLive'])
+        ) ||
         (
           existing().creatorId == request.auth.uid &&
           incoming().creatorId == existing().creatorId &&
@@ -817,7 +1192,7 @@ service cloud.firestore {
           incoming().diff(existing()).affectedKeys().hasOnly(['viewerCount'])
         )
       );
-      allow delete: if isValidId(streamId) && isVerifiedUser() && (existing().creatorId == request.auth.uid || isAdmin());
+      allow delete: if isValidId(streamId) && isVerifiedUser() && (existing().creatorId == request.auth.uid || isCEO());
 
       match /messages/{messageId} {
         allow get: if isValidId(streamId) && isValidId(messageId);
@@ -829,60 +1204,60 @@ service cloud.firestore {
           incoming().createdAt == request.time &&
           exists(/databases/$(database)/documents/liveStreams/$(streamId));
         allow update: if false;
-        allow delete: if isValidId(streamId) && isValidId(messageId) && isVerifiedUser() && (existing().senderId == request.auth.uid || isAdmin());
+        allow delete: if isValidId(streamId) && isValidId(messageId) && isVerifiedUser() && (existing().senderId == request.auth.uid || hasAdminPerm('moderateVideos'));
       }
     }
 
     match /challenges/{challengeId} {
       allow get: if isValidId(challengeId);
       allow list: if resource.data.status in ['active', 'ended'];
-      allow create: if isValidId(challengeId) && isAdmin() &&
+      allow create: if isValidId(challengeId) && hasAdminPerm('manageCompetitions') &&
         isValidChallenge(incoming()) &&
         incoming().createdAt == request.time;
       allow update: if isValidId(challengeId) && isVerifiedUser() && isValidChallenge(incoming()) && (
-        isAdmin() ||
+        hasAdminPerm('manageCompetitions') ||
         (
           existing().status == 'active' &&
           incoming().createdAt == existing().createdAt &&
           incoming().diff(existing()).affectedKeys().hasOnly(['participantsCount'])
         )
       );
-      allow delete: if isValidId(challengeId) && isAdmin();
+      allow delete: if isValidId(challengeId) && (isCEO() || hasAdminPerm('manageCompetitions'));
     }
 
     match /competitions/{compId} {
       allow get: if isValidId(compId);
       allow list: if resource.data.status in ['active', 'completed'];
-      allow create: if isValidId(compId) && isAdmin() &&
+      allow create: if isValidId(compId) && hasAdminPerm('manageCompetitions') &&
         isValidCompetition(incoming()) &&
         incoming().createdAt == request.time;
-      allow update: if isValidId(compId) && isAdmin() &&
+      allow update: if isValidId(compId) && hasAdminPerm('manageCompetitions') &&
         isValidCompetition(incoming()) &&
         incoming().createdAt == existing().createdAt;
-      allow delete: if isValidId(compId) && isAdmin();
+      allow delete: if isValidId(compId) && (isCEO() || hasAdminPerm('manageCompetitions'));
     }
 
     match /announcements/{announcementId} {
       allow get: if isValidId(announcementId) && (resource.data.isActive == true || isAdmin() || isCEO());
       allow list: if resource.data.isActive == true || isAdmin() || isCEO();
-      allow create: if isValidId(announcementId) && (isAdmin() || isCEO()) &&
+      allow create: if isValidId(announcementId) && hasAdminPerm('manageAnnouncements') &&
         isValidAnnouncement(incoming()) &&
         incoming().createdAt == request.time;
-      allow update: if isValidId(announcementId) && (isAdmin() || isCEO()) &&
+      allow update: if isValidId(announcementId) && hasAdminPerm('manageAnnouncements') &&
         isValidAnnouncement(incoming()) &&
         incoming().createdAt == existing().createdAt;
-      allow delete: if isValidId(announcementId) && (isAdmin() || isCEO());
+      allow delete: if isValidId(announcementId) && isCEO();
     }
 
     match /reports/{reportId} {
-      allow get: if isValidId(reportId) && isSignedIn() && (resource.data.reporterId == request.auth.uid || isAdmin() || isCEO());
+      allow get: if isValidId(reportId) && isSignedIn() && (resource.data.reporterId == request.auth.uid || hasAdminPerm('resolveReports') || isCEO());
       allow list: if isSignedIn() && (resource.data.reporterId == request.auth.uid || isAdmin() || isCEO());
       allow create: if isValidId(reportId) && isVerifiedUser() &&
         isValidReport(incoming()) &&
         incoming().reporterId == request.auth.uid &&
         incoming().status == 'pending' &&
         incoming().createdAt == request.time;
-      allow update: if isValidId(reportId) && (isAdmin() || isCEO()) && isValidReport(incoming()) &&
+      allow update: if isValidId(reportId) && hasAdminPerm('resolveReports') && isValidReport(incoming()) &&
         incoming().reporterId == existing().reporterId &&
         incoming().createdAt == existing().createdAt &&
         incoming().diff(existing()).affectedKeys().hasOnly(['status']);
@@ -890,14 +1265,14 @@ service cloud.firestore {
     }
 
     match /notifications/{notificationId} {
-      allow get: if isValidId(notificationId) && isSignedIn() && (resource.data.recipientId == request.auth.uid || isAdmin());
-      allow list: if isSignedIn() && (resource.data.recipientId == request.auth.uid || isAdmin());
+      allow get: if isValidId(notificationId) && isSignedIn() && (resource.data.recipientId == request.auth.uid || isCEO());
+      allow list: if isSignedIn() && (resource.data.recipientId == request.auth.uid || isCEO());
       allow create: if isValidId(notificationId) && isVerifiedUser() &&
         isValidNotification(incoming()) &&
-        (isAdmin() || incoming().isRead == false) &&
+        (isCEO() || incoming().isRead == false) &&
         incoming().createdAt == request.time;
       allow update: if isValidId(notificationId) && isVerifiedUser() && isValidNotification(incoming()) && (
-        isAdmin() ||
+        isCEO() ||
         (
           existing().recipientId == request.auth.uid &&
           incoming().recipientId == existing().recipientId &&
@@ -905,16 +1280,269 @@ service cloud.firestore {
           incoming().diff(existing()).affectedKeys().hasOnly(['isRead'])
         )
       );
-      allow delete: if isValidId(notificationId) && isVerifiedUser() && (existing().recipientId == request.auth.uid || isAdmin());
+      allow delete: if isValidId(notificationId) && isVerifiedUser() && (existing().recipientId == request.auth.uid || isCEO());
     }
 
     match /platformConfig/{configId} {
       allow get: if isValidId(configId);
       allow list: if resource.data.earlyCreatorBoostEnabled is bool;
-      allow create, update: if isValidId(configId) && isAdmin() &&
+      allow create: if isValidId(configId) && isCEO() &&
         isValidPlatformConfig(incoming()) &&
         incoming().updatedAt == request.time;
+      allow update: if isValidId(configId) && isValidPlatformConfig(incoming()) &&
+        incoming().updatedAt == request.time && (
+        isCEO() ||
+        (
+          hasAdminPerm('manageCategories') &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['categories', 'updatedAt'])
+        )
+      );
       allow delete: if isValidId(configId) && isCEO();
+    }
+
+    // --- Creator Monetization System Collections ---
+
+    match /adRevenueRecords/{recordId} {
+      allow get: if isValidId(recordId) && isSignedIn() && (resource.data.creatorId == request.auth.uid || hasAdminPerm('manageMonetization') || isCEO());
+      allow list: if isSignedIn() && (resource.data.creatorId == request.auth.uid || isAdmin() || isCEO());
+      allow create: if isValidId(recordId) && (isCEO() || hasAdminPerm('manageMonetization')) &&
+        isValidAdRevenueRecord(incoming()) &&
+        incoming().createdAt == request.time;
+      allow update: if isValidId(recordId) && (isCEO() || hasAdminPerm('manageMonetization')) &&
+        isValidAdRevenueRecord(incoming()) &&
+        incoming().creatorId == existing().creatorId &&
+        incoming().videoId == existing().videoId &&
+        incoming().createdAt == existing().createdAt;
+      allow delete: if isValidId(recordId) && isCEO();
+    }
+
+    match /membershipPlans/{planId} {
+      allow get: if isValidId(planId);
+      allow list: if resource.data.isActive == true || (isSignedIn() && resource.data.creatorId == request.auth.uid) || isAdmin() || isCEO();
+      allow create: if isValidId(planId) && isVerifiedUser() &&
+        isValidMembershipPlan(incoming()) &&
+        (isCEO() || incoming().creatorId == request.auth.uid) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(planId) && isVerifiedUser() &&
+        isValidMembershipPlan(incoming()) && (
+        isCEO() ||
+        (
+          existing().creatorId == request.auth.uid &&
+          incoming().creatorId == existing().creatorId &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().updatedAt == request.time
+        )
+      );
+      allow delete: if isValidId(planId) && isVerifiedUser() && (existing().creatorId == request.auth.uid || isCEO());
+    }
+
+    match /creatorMemberships/{membershipId} {
+      allow get: if isValidId(membershipId) && isSignedIn() && (resource.data.memberId == request.auth.uid || resource.data.creatorId == request.auth.uid || hasAdminPerm('manageMonetization') || isCEO());
+      allow list: if isSignedIn() && (resource.data.memberId == request.auth.uid || resource.data.creatorId == request.auth.uid || isAdmin() || isCEO());
+      allow create: if isValidId(membershipId) && isVerifiedUser() &&
+        isValidCreatorMembership(incoming()) &&
+        (
+          isCEO() ||
+          (
+            incoming().memberId == request.auth.uid &&
+            incoming().paymentVerified == false &&
+            incoming().status == 'pending'
+          )
+        ) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(membershipId) && isVerifiedUser() && isValidCreatorMembership(incoming()) && (
+        isCEO() ||
+        hasAdminPerm('manageMonetization') ||
+        (
+          existing().memberId == request.auth.uid &&
+          incoming().memberId == existing().memberId &&
+          incoming().creatorId == existing().creatorId &&
+          incoming().paymentVerified == existing().paymentVerified &&
+          incoming().status == 'cancelled' &&
+          incoming().updatedAt == request.time &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])
+        )
+      );
+      allow delete: if isValidId(membershipId) && isCEO();
+    }
+
+    match /brandCampaigns/{campaignId} {
+      allow get: if isValidId(campaignId) && isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if isValidId(campaignId) && (isCEO() || hasAdminPerm('manageMonetization')) &&
+        isValidBrandCampaign(incoming()) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(campaignId) && (isCEO() || hasAdminPerm('manageMonetization')) &&
+        isValidBrandCampaign(incoming()) &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time;
+      allow delete: if isValidId(campaignId) && isCEO();
+    }
+
+    match /brandApplications/{appId} {
+      allow get: if isValidId(appId) && isSignedIn() && (resource.data.creatorId == request.auth.uid || hasAdminPerm('manageMonetization') || isCEO());
+      allow list: if isSignedIn() && (resource.data.creatorId == request.auth.uid || isAdmin() || isCEO());
+      allow create: if isValidId(appId) && isVerifiedUser() &&
+        isValidBrandApplication(incoming()) &&
+        incoming().creatorId == request.auth.uid &&
+        incoming().status == 'applied' &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(appId) && isVerifiedUser() && isValidBrandApplication(incoming()) && (
+        isCEO() ||
+        hasAdminPerm('manageMonetization') ||
+        (
+          existing().creatorId == request.auth.uid &&
+          existing().status == 'approved' &&
+          incoming().status == 'delivered' &&
+          incoming().creatorId == existing().creatorId &&
+          incoming().campaignId == existing().campaignId &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().updatedAt == request.time &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['deliverableUrl', 'status', 'updatedAt'])
+        )
+      );
+      allow delete: if isValidId(appId) && isVerifiedUser() && ((existing().creatorId == request.auth.uid && existing().status == 'applied') || isCEO());
+    }
+
+    match /affiliateLinks/{linkId} {
+      allow get: if isValidId(linkId);
+      allow list: if resource.data.isActive == true || (isSignedIn() && resource.data.creatorId == request.auth.uid) || isAdmin() || isCEO();
+      allow create: if isValidId(linkId) && isVerifiedUser() &&
+        isValidAffiliateLink(incoming()) &&
+        (
+          isCEO() ||
+          (
+            incoming().creatorId == request.auth.uid &&
+            incoming().clicksCount == 0 &&
+            incoming().validClicksCount == 0 &&
+            incoming().conversionsCount == 0 &&
+            incoming().earnedInr == 0
+          )
+        ) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(linkId) && isVerifiedUser() && isValidAffiliateLink(incoming()) && (
+        isCEO() ||
+        hasAdminPerm('manageMonetization') ||
+        (
+          existing().creatorId == request.auth.uid &&
+          incoming().creatorId == existing().creatorId &&
+          incoming().code == existing().code &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().updatedAt == request.time &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['targetUrl', 'productTitle', 'merchantName', 'commissionPercent', 'isActive', 'updatedAt'])
+        )
+      );
+      allow delete: if isValidId(linkId) && isVerifiedUser() && (existing().creatorId == request.auth.uid || isCEO());
+    }
+
+    match /affiliateEvents/{eventId} {
+      allow get: if isValidId(eventId) && isSignedIn() && (resource.data.creatorId == request.auth.uid || hasAdminPerm('manageMonetization') || isCEO());
+      allow list: if isSignedIn() && (resource.data.creatorId == request.auth.uid || isAdmin() || isCEO());
+      allow create: if isValidId(eventId) && (isCEO() || hasAdminPerm('manageMonetization')) &&
+        isValidAffiliateEvent(incoming()) &&
+        incoming().createdAt == request.time;
+      allow update: if isValidId(eventId) && (isCEO() || hasAdminPerm('manageMonetization')) &&
+        isValidAffiliateEvent(incoming()) &&
+        incoming().creatorId == existing().creatorId &&
+        incoming().createdAt == existing().createdAt;
+      allow delete: if isValidId(eventId) && isCEO();
+    }
+
+    match /videoPurchases/{purchaseId} {
+      allow get: if isValidId(purchaseId) && isSignedIn() && (resource.data.buyerId == request.auth.uid || resource.data.creatorId == request.auth.uid || hasAdminPerm('manageMonetization') || isCEO());
+      allow list: if isSignedIn() && (resource.data.buyerId == request.auth.uid || resource.data.creatorId == request.auth.uid || isAdmin() || isCEO());
+      allow create: if isValidId(purchaseId) && isVerifiedUser() &&
+        isValidVideoPurchase(incoming()) &&
+        (
+          isCEO() ||
+          (
+            incoming().buyerId == request.auth.uid &&
+            incoming().paymentVerified == false &&
+            incoming().status == 'pending_verification'
+          )
+        ) &&
+        incoming().createdAt == request.time;
+      allow update: if isValidId(purchaseId) && (isCEO() || hasAdminPerm('manageMonetization')) &&
+        isValidVideoPurchase(incoming()) &&
+        incoming().buyerId == existing().buyerId &&
+        incoming().videoId == existing().videoId &&
+        incoming().createdAt == existing().createdAt;
+      allow delete: if isValidId(purchaseId) && isCEO();
+    }
+
+    match /monetizationTransactions/{txId} {
+      allow get: if isValidId(txId) && isSignedIn() && (resource.data.creatorId == request.auth.uid || resource.data.counterpartyId == request.auth.uid || hasAdminPerm('manageMonetization') || isCEO());
+      allow list: if isSignedIn() && (resource.data.creatorId == request.auth.uid || resource.data.counterpartyId == request.auth.uid || isAdmin() || isCEO());
+      allow create: if isValidId(txId) && isCEO() &&
+        isValidMonetizationTransaction(incoming()) &&
+        incoming().createdAt == request.time;
+      allow update: if isValidId(txId) && isCEO() &&
+        isValidMonetizationTransaction(incoming()) &&
+        incoming().creatorId == existing().creatorId &&
+        incoming().createdAt == existing().createdAt;
+      allow delete: if false;
+    }
+
+    match /invalidTrafficFlags/{flagId} {
+      allow get: if isValidId(flagId) && isSignedIn() && (resource.data.creatorId == request.auth.uid || hasAdminPerm('manageMonetization') || isCEO());
+      allow list: if isSignedIn() && (resource.data.creatorId == request.auth.uid || isAdmin() || isCEO());
+      allow create: if isValidId(flagId) && (isCEO() || hasAdminPerm('manageMonetization')) &&
+        isValidInvalidTrafficFlag(incoming()) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(flagId) && (isCEO() || hasAdminPerm('manageMonetization')) &&
+        isValidInvalidTrafficFlag(incoming()) &&
+        incoming().creatorId == existing().creatorId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time;
+      allow delete: if isValidId(flagId) && isCEO();
+    }
+
+    match /paymentDisputes/{disputeId} {
+      allow get: if isValidId(disputeId) && isSignedIn() && (resource.data.reporterId == request.auth.uid || resource.data.creatorId == request.auth.uid || hasAdminPerm('manageMonetization') || isCEO());
+      allow list: if isSignedIn() && (resource.data.reporterId == request.auth.uid || resource.data.creatorId == request.auth.uid || isAdmin() || isCEO());
+      allow create: if isValidId(disputeId) && isVerifiedUser() &&
+        isValidPaymentDispute(incoming()) &&
+        incoming().reporterId == request.auth.uid &&
+        incoming().status == 'open' &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(disputeId) && (isCEO() || hasAdminPerm('manageMonetization')) &&
+        isValidPaymentDispute(incoming()) &&
+        incoming().reporterId == existing().reporterId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time;
+      allow delete: if isValidId(disputeId) && isCEO();
+    }
+
+    match /paymentTransactions/{paymentId} {
+      allow get: if isValidId(paymentId) && isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.creatorId == request.auth.uid || hasAdminPerm('manageMonetization') || isCEO());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.creatorId == request.auth.uid || isAdmin() || isCEO());
+      allow create: if isValidId(paymentId) && isVerifiedUser() &&
+        isValidPaymentTransaction(incoming()) &&
+        incoming().userId == request.auth.uid &&
+        incoming().status == 'pending_verification' &&
+        incoming().serviceActivated == false &&
+        !('verifiedByUid' in incoming()) &&
+        !('verifiedByRole' in incoming()) &&
+        !('verifiedAt' in incoming()) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(paymentId) && (isCEO() || hasAdminPerm('manageMonetization')) &&
+        isValidPaymentTransaction(incoming()) &&
+        incoming().userId == existing().userId &&
+        incoming().creatorId == existing().creatorId &&
+        incoming().amountInr == existing().amountInr &&
+        incoming().paymentMethod == existing().paymentMethod &&
+        incoming().utrNumber == existing().utrNumber &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time;
+      allow delete: if false;
     }
   }
 }

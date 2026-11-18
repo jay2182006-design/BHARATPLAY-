@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import { WebSocketProvider, useWebSocket } from './contexts/WebSocketContext';
 import { ToastProvider, useToast } from './components/Toast';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -23,6 +24,7 @@ import { CreatorLeaguePage } from './pages/CreatorLeaguePage';
 import { WatchPartyPage } from './pages/WatchPartyPage';
 import { NotificationsPage } from './pages/NotificationsPage';
 import { LibraryPage } from './pages/LibraryPage';
+import { PaymentsPage } from './pages/PaymentsPage';
 import {
   subscribeAcceptedCollaborations,
   subscribeAnnouncements,
@@ -180,6 +182,8 @@ function BharatPlayShell() {
     } else if (p) {
       setRoute('watch-party');
       setRouteParam(p);
+    } else if (params.get('payments')) {
+      setRoute('payments');
     }
   }, []);
 
@@ -430,6 +434,10 @@ function BharatPlayShell() {
 
       {route === 'settings' && <SettingsPage onNavigate={navigate} />}
 
+      {route === 'payments' && (
+        <PaymentsPage videos={videos} onWatchVideo={handleWatchVideo} onNavigate={navigate} />
+      )}
+
       {route === 'admin' && (
         <AdminDashboardPage
           creators={creators}
@@ -469,11 +477,13 @@ export default function App() {
   return (
     <ErrorBoundary>
       <AuthProvider>
-        <WebSocketProvider>
-          <ToastProvider>
-            <BharatPlayShell />
-          </ToastProvider>
-        </WebSocketProvider>
+        <ThemeProvider>
+          <WebSocketProvider>
+            <ToastProvider>
+              <BharatPlayShell />
+            </ToastProvider>
+          </WebSocketProvider>
+        </ThemeProvider>
       </AuthProvider>
     </ErrorBoundary>
   );

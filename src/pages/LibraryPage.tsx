@@ -50,16 +50,16 @@ export function LibraryPage({
 
   if (!user) {
     return (
-      <div className="max-w-lg mx-auto my-16 p-8 rounded-2xl bg-zinc-50 border border-zinc-200 text-center space-y-4">
+      <div className="max-w-lg mx-auto my-16 p-8 rounded-2xl bg-zinc-50 dark:bg-[#111115] border border-zinc-200 dark:border-zinc-800 text-center space-y-4">
         {mode === 'watch-later' ? (
-          <Bookmark className="w-10 h-10 text-[#EA580C] mx-auto" />
+          <Bookmark className="w-10 h-10 text-[#EA580C] dark:text-[#F97316] mx-auto" />
         ) : (
           <History className="w-10 h-10 text-[#E11D48] mx-auto" />
         )}
-        <h1 className="text-xl font-bold font-display text-zinc-900">
+        <h1 className="text-xl font-bold font-display text-zinc-900 dark:text-white">
           {mode === 'watch-later' ? 'Sign in for Watch Later' : 'Sign in for Watch History'}
         </h1>
-        <p className="text-sm text-zinc-600">
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">
           Your saved videos and playback progress sync securely across sessions.
         </p>
         <button
@@ -80,17 +80,17 @@ export function LibraryPage({
 
     return (
       <div className="max-w-[1440px] mx-auto px-4 md:px-6 lg:px-8 py-6 space-y-6">
-        <div className="flex items-center justify-between border-b border-zinc-200 pb-4">
+        <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-4">
           <div className="flex items-center gap-2.5">
-            <Bookmark className="w-5 h-5 text-[#EA580C]" />
-            <h1 className="text-2xl font-bold font-display text-zinc-900">Watch Later</h1>
+            <Bookmark className="w-5 h-5 text-[#EA580C] dark:text-[#F97316]" />
+            <h1 className="text-2xl font-bold font-display text-zinc-900 dark:text-white">Watch Later</h1>
           </div>
-          <span className="text-xs text-zinc-500 tabular-nums">{savedVideos.length} saved</span>
+          <span className="text-xs text-zinc-500 dark:text-zinc-400 tabular-nums">{savedVideos.length} saved</span>
         </div>
 
         {savedVideos.length === 0 ? (
-          <div className="p-12 rounded-2xl bg-zinc-50 border border-zinc-200 text-center space-y-3">
-            <p className="text-sm text-zinc-700">Your Watch Later list is empty.</p>
+          <div className="p-12 rounded-2xl bg-zinc-50 dark:bg-[#111115] border border-zinc-200 dark:border-zinc-800 text-center space-y-3">
+            <p className="text-sm text-zinc-700 dark:text-zinc-300">Your Watch Later list is empty.</p>
             <button
               type="button"
               onClick={() => onNavigate('home')}
@@ -120,17 +120,17 @@ export function LibraryPage({
 
   return (
     <div className="max-w-5xl mx-auto px-4 md:px-6 py-6 space-y-6">
-      <div className="flex items-center justify-between border-b border-zinc-200 pb-4">
+      <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-4">
         <div className="flex items-center gap-2.5">
           <History className="w-5 h-5 text-[#E11D48]" />
-          <h1 className="text-2xl font-bold font-display text-zinc-900">Watch History</h1>
+          <h1 className="text-2xl font-bold font-display text-zinc-900 dark:text-white">Watch History</h1>
         </div>
-        <span className="text-xs text-zinc-500 tabular-nums">{watchHistory.length} videos</span>
+        <span className="text-xs text-zinc-500 dark:text-zinc-400 tabular-nums">{watchHistory.length} videos</span>
       </div>
 
       {watchHistory.length === 0 ? (
-        <div className="p-12 rounded-2xl bg-zinc-50 border border-zinc-200 text-center space-y-3">
-          <p className="text-sm text-zinc-700">No watch history recorded yet.</p>
+        <div className="p-12 rounded-2xl bg-zinc-50 dark:bg-[#111115] border border-zinc-200 dark:border-zinc-800 text-center space-y-3">
+          <p className="text-sm text-zinc-700 dark:text-zinc-300">No watch history recorded yet.</p>
           <button
             type="button"
             onClick={() => onNavigate('home')}
@@ -148,7 +148,7 @@ export function LibraryPage({
             return (
               <div
                 key={item.id}
-                className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-3.5 rounded-xl bg-zinc-50 border border-zinc-200"
+                className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-3.5 rounded-xl bg-zinc-50 dark:bg-[#111115] border border-zinc-200 dark:border-zinc-800"
               >
                 <button
                   type="button"
@@ -157,20 +157,20 @@ export function LibraryPage({
                   }}
                   className="flex items-center gap-4 text-left flex-1 min-w-0 group"
                 >
-                  <div className="relative w-40 aspect-video rounded-lg overflow-hidden bg-zinc-900 shrink-0 border border-zinc-200">
+                  <div className="relative w-40 aspect-video rounded-lg overflow-hidden bg-zinc-900 shrink-0 border border-zinc-200 dark:border-zinc-700">
                     <MediaImage src={item.thumbnailUrl} alt={item.title} className="w-full h-full object-cover" />
                     <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/30">
                       <div className="h-full bg-[#E11D48]" style={{ width: `${pct}%` }} />
                     </div>
                   </div>
                   <div className="min-w-0">
-                    <div className="text-sm font-semibold text-zinc-900 group-hover:text-[#EA580C] truncate">
+                    <div className="text-sm font-semibold text-zinc-900 dark:text-white group-hover:text-[#EA580C] dark:group-hover:text-[#F97316] truncate">
                       {item.title}
                     </div>
-                    <div className="text-xs text-zinc-600 mt-1">
+                    <div className="text-xs text-zinc-600 dark:text-zinc-400 mt-1">
                       {item.creatorName || 'Creator'} · Watched {formatDuration(item.progressSeconds)} / {formatDuration(dur)}
                     </div>
-                    <div className="text-[11px] text-zinc-500 mt-0.5">
+                    <div className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
                       {formatRelativeDate(item.updatedAt)}
                     </div>
                   </div>
@@ -182,7 +182,7 @@ export function LibraryPage({
                     await removeWatchHistoryItem(user.uid, item.videoId);
                     showToast('Removed from Watch History.', 'info');
                   }}
-                  className="p-2 rounded-lg text-zinc-500 hover:text-[#E11D48] hover:bg-rose-50 self-end sm:self-center"
+                  className="p-2 rounded-lg text-zinc-500 dark:text-zinc-400 hover:text-[#E11D48] hover:bg-rose-50 dark:hover:bg-rose-950/30 self-end sm:self-center"
                   aria-label="Remove from history"
                 >
                   <Trash2 className="w-4 h-4" />

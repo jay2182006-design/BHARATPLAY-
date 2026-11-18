@@ -27,17 +27,27 @@ import {
 } from '../lib/firebase';
 import { ensureAdminSeededCatalog } from '../lib/catalogSeed';
 import { slugifyHandle } from '../lib/formatters';
-import type { UserPrivateAccount, UserPublicProfile } from '../types/bharatplay';
+import {
+  DEFAULT_ADMIN_PERMISSIONS,
+  type AdminPermissionKey,
+  type AdminPermissions,
+  type UserPrivateAccount,
+  type UserPublicProfile,
+  type UserRole,
+} from '../types/bharatplay';
 
 interface AuthContextValue {
   user: User | null;
   profile: UserPublicProfile | null;
   privateAccount: UserPrivateAccount | null;
   authReady: boolean;
+  role: UserRole;
   isCeo: boolean;
   isAdmin: boolean;
   isCreator: boolean;
   isSuspended: boolean;
+  adminPermissions: AdminPermissions | null;
+  hasAdminPermission: (perm: AdminPermissionKey) => boolean;
   signInWithGoogle: () => Promise<void>;
   loginWithEmail: (email: string, password: string) => Promise<void>;
   registerWithEmail: (name: string, email: string, password: string, asCreator: boolean, preferredLanguage: string) => Promise<void>;
@@ -45,7 +55,9 @@ interface AuthContextValue {
   logout: () => Promise<void>;
   becomeCreator: (bio: string, preferredLanguage: string) => Promise<void>;
   updateUserProfile: (updates: Partial<UserPublicProfile>) => Promise<void>;
-  updatePrivateSettings: (updates: Partial<UserPrivateAccount>) => Promise<void>;
+  updatePrivateSettings: (
+    updates: Pick<Partial<UserPrivateAccount>, 'upiId' | 'notificationsEnabled' | 'themePreference'>
+  ) => Promise<void>;
   getIdToken: (forceRefresh?: boolean) => Promise<string | null>;
   reauthenticateCeo: (password?: string) => Promise<string>;
 }
@@ -59,10 +71,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [authReady, setAuthReady] = useState(false);
   const [serverCeoCleared, setServerCeoCleared] = useState(false);
   const [serverAdminCleared, setServerAdminCleared] = useState(false);
+  const [adminPermissions, setAdminPermissions] = useState<AdminPermissions | null>(null);
 
-  // Server-verified clearance (never trusts frontend role strings or hardcoded emails)
+  // Strict server-verified RBAC clearance (never trusts client-editable role fields or hardcoded emails)
   const isCeo = Boolean(user && user.emailVerified && serverCeoCleared);
-  const isAdmin = isCeo || Boolean(user && user.emailVerified && (serverAdminCleared || privateAccount?.role === 'admin'));
+  const isAdmin = isCeo || Boolean(user && user.emailVerified && serverAdminCleared);
   const isSuspended = Boolean(
     profile?.accountStatus === 'suspended' ||
       profile?.accountStatus === 'deleted' ||
@@ -72,7 +85,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     !isSuspended &&
     profile?.channelStatus !== 'suspended' &&
     profile?.channelStatus !== 'deleted' &&
-    Boolean(profile?.isCreator || privateAccount?.role === 'creator' || isAdmin);
+    Boolean(profile?.isCreator || privateAccount?.role === 'creator');
+
+  const role: UserRole = isCeo
+    ? 'ceo'
+    : isAdmin
+    ? 'admin'
+    : isCreator
+    ? 'creator'
+    : 'viewer';
+
+  const hasAdminPermission = (perm: AdminPermissionKey): boolean => {
+    if (isCeo) return true;
+    if (!isAdmin || !adminPermissions) return false;
+    return Boolean(adminPermissions[perm]);
+  };
 
   useEffect(() => {
     let unsubProfile: (() => void) | null = null;
@@ -92,6 +119,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(firebaseUser);
       setServerCeoCleared(false);
       setServerAdminCleared(false);
+      setAdminPermissions(null);
 
       if (!firebaseUser) {
         setProfile(null);
@@ -102,6 +130,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       let clearanceCeo = false;
       let clearanceAdmin = false;
+      let clearancePerms: AdminPermissions | null = null;
 
       if (firebaseUser.emailVerified) {
         try {
@@ -113,9 +142,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const clearance = await res.json();
             clearanceCeo = Boolean(clearance.isCeo);
             clearanceAdmin = Boolean(clearance.isAdmin);
+            clearancePerms = clearance.adminPermissions || null;
             if (active) {
               setServerCeoCleared(clearanceCeo);
               setServerAdminCleared(clearanceAdmin);
+              setAdminPermissions(clearancePerms);
             }
           }
         } catch {
@@ -162,8 +193,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             role: clearanceCeo ? 'ceo' : clearanceAdmin ? 'admin' : 'viewer',
             monetizationEnabled: false,
             estimatedEarningsInr: 0,
+            availableBalanceInr: 0,
+            pendingBalanceInr: 0,
+            lifetimeEarningsInr: 0,
             upiId: '',
             notificationsEnabled: true,
+            themePreference:
+              (typeof window !== 'undefined' &&
+              (window.localStorage.getItem('bharatplay_theme') === 'light' ||
+                window.localStorage.getItem('bharatplay_theme') === 'dark')
+                ? (window.localStorage.getItem('bharatplay_theme') as 'dark' | 'light')
+                : 'dark'),
             suspended: false,
             updatedAt: serverTimestamp(),
           });
@@ -184,7 +224,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (!adminSnap || !adminSnap.exists()) {
             await setDoc(adminRoleRef, {
               uid: firebaseUser.uid,
+              displayName: (firebaseUser.displayName || 'CEO').slice(0, 80),
+              email: (firebaseUser.email || '').slice(0, 160),
+              permissions: {
+                ...DEFAULT_ADMIN_PERMISSIONS,
+                moderateVideos: true,
+                resolveReports: true,
+                manageCreators: true,
+                manageCompetitions: true,
+                manageAnnouncements: true,
+                manageCategories: true,
+              },
+              grantedBy: firebaseUser.uid,
+              notes: 'CEO Root Bootstrap',
               grantedAt: serverTimestamp(),
+              updatedAt: serverTimestamp(),
             }).catch(() => {});
           }
         }
@@ -306,19 +360,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const becomeCreator = async (bio: string, preferredLanguage: string) => {
     if (!user) throw new Error('Sign in required');
     if (isSuspended) throw new Error('Suspended accounts cannot activate creator channels.');
+    if (profile?.channelStatus === 'suspended' || profile?.channelStatus === 'deleted') {
+      throw new Error('This creator channel cannot be self-activated while suspended or deleted.');
+    }
     const publicRef = doc(db, 'users', user.uid);
-    const privateRef = doc(db, 'users', user.uid, 'private', 'account');
     try {
       await updateDoc(publicRef, {
         isCreator: true,
         isEarlyCreator: true,
         bio: bio.slice(0, 500),
         preferredLanguage,
-        updatedAt: serverTimestamp(),
-      });
-      await updateDoc(privateRef, {
-        role: isCeo ? 'ceo' : isAdmin ? 'admin' : 'creator',
-        monetizationEnabled: true,
         updatedAt: serverTimestamp(),
       });
     } catch (err) {
@@ -339,14 +390,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const updatePrivateSettings = async (updates: Partial<UserPrivateAccount>) => {
+  const updatePrivateSettings = async (
+    updates: Pick<Partial<UserPrivateAccount>, 'upiId' | 'notificationsEnabled' | 'themePreference'>
+  ) => {
     if (!user) throw new Error('Sign in required');
     const privateRef = doc(db, 'users', user.uid, 'private', 'account');
+    const allowedPayload: Record<string, unknown> = {
+      updatedAt: serverTimestamp(),
+    };
+    if (typeof updates.upiId === 'string') {
+      allowedPayload.upiId = updates.upiId.trim().slice(0, 100);
+    }
+    if (typeof updates.notificationsEnabled === 'boolean') {
+      allowedPayload.notificationsEnabled = updates.notificationsEnabled;
+    }
+    if (updates.themePreference === 'dark' || updates.themePreference === 'light') {
+      allowedPayload.themePreference = updates.themePreference;
+    }
     try {
-      await updateDoc(privateRef, {
-        ...updates,
-        updatedAt: serverTimestamp(),
-      });
+      await updateDoc(privateRef, allowedPayload);
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, `users/${user.uid}/private/account`);
     }
@@ -379,10 +441,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         profile,
         privateAccount,
         authReady,
+        role,
         isCeo,
         isAdmin,
         isCreator,
         isSuspended,
+        adminPermissions,
+        hasAdminPermission,
         signInWithGoogle,
         loginWithEmail,
         registerWithEmail,

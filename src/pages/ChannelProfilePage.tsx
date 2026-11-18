@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   BadgeCheck,
+  Clock,
+  Crown,
   Handshake,
   HeartHandshake,
   ListVideo,
@@ -12,20 +14,30 @@ import {
 } from 'lucide-react';
 import { MediaImage } from '../components/MediaImage';
 import { VideoCard } from '../components/VideoCard';
+import { UpiQrPaymentModal, type UpiQrPaymentRequest } from '../components/UpiQrPaymentModal';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../components/Toast';
 import {
   sendCollaborationRequest,
-  sendCreatorSupport,
   subscribePublicPlaylistsByCreator,
   toggleSubscribe,
   voteCommunityPoll,
 } from '../lib/bharatplayService';
+import {
+  subscribeMembershipPlans,
+  subscribeSupporterHistory,
+  subscribeUserMemberships,
+  subscribeUserPaymentTransactions,
+} from '../lib/monetizationService';
 import { formatCount, formatInr, formatRelativeDate } from '../lib/formatters';
 import type {
   AppRoute,
   CollaborationRequest,
   CommunityPost,
+  CreatorMembership,
+  CreatorSupport,
+  MembershipPlan,
+  PaymentTransaction,
   Playlist,
   Subscription,
   UserPublicProfile,
@@ -66,11 +78,13 @@ export function ChannelProfilePage({
 }: ChannelProfilePageProps) {
   const { user, profile, isCeo } = useAuth();
   const { showToast } = useToast();
-  const [tab, setTab] = useState<'videos' | 'shorts' | 'playlists' | 'community' | 'collabs' | 'about'>('videos');
+  const [tab, setTab] = useState<'videos' | 'shorts' | 'memberships' | 'playlists' | 'community' | 'collabs' | 'about'>('videos');
   const [publicPlaylists, setPublicPlaylists] = useState<Playlist[]>([]);
-  const [showSupport, setShowSupport] = useState(false);
-  const [supportAmount, setSupportAmount] = useState(100);
-  const [supportNote, setSupportNote] = useState('');
+  const [membershipPlans, setMembershipPlans] = useState<MembershipPlan[]>([]);
+  const [myMemberships, setMyMemberships] = useState<CreatorMembership[]>([]);
+  const [mySupports, setMySupports] = useState<CreatorSupport[]>([]);
+  const [myPayments, setMyPayments] = useState<PaymentTransaction[]>([]);
+  const [qrCheckout, setQrCheckout] = useState<UpiQrPaymentRequest | null>(null);
 
   // Collaboration Invite Modal
   const [showCollabModal, setShowCollabModal] = useState(false);
@@ -90,11 +104,33 @@ export function ChannelProfilePage({
   useEffect(() => {
     if (!channelId) {
       setPublicPlaylists([]);
+      setMembershipPlans([]);
       return;
     }
-    const unsub = subscribePublicPlaylistsByCreator(channelId, setPublicPlaylists);
-    return () => unsub();
+    const unsub1 = subscribePublicPlaylistsByCreator(channelId, setPublicPlaylists);
+    const unsub2 = subscribeMembershipPlans(channelId, false, setMembershipPlans);
+    return () => {
+      unsub1();
+      unsub2();
+    };
   }, [channelId]);
+
+  useEffect(() => {
+    if (!user?.uid) {
+      setMyMemberships([]);
+      setMySupports([]);
+      setMyPayments([]);
+      return;
+    }
+    const u1 = subscribeUserMemberships(user.uid, setMyMemberships);
+    const u2 = subscribeSupporterHistory(user.uid, setMySupports);
+    const u3 = subscribeUserPaymentTransactions(user.uid, setMyPayments);
+    return () => {
+      u1();
+      u2();
+      u3();
+    };
+  }, [user?.uid]);
 
   const channelVideos = useMemo(
     () => videos.filter((v) => v.creatorId === channelId && v.type === 'video'),
@@ -121,7 +157,7 @@ export function ChannelProfilePage({
   if (!channel) {
     return (
       <div className="max-w-3xl mx-auto p-12 text-center space-y-3">
-        <h1 className="text-xl font-bold text-zinc-900">Channel not found</h1>
+        <h1 className="text-xl font-bold text-zinc-900 dark:text-white">Channel not found</h1>
         <button
           type="button"
           onClick={() => onNavigate('home')}
@@ -142,8 +178,8 @@ export function ChannelProfilePage({
   if (isRestrictedChannel && !isOwnChannel && !isCeo) {
     return (
       <div className="max-w-3xl mx-auto p-12 text-center space-y-3">
-        <h1 className="text-xl font-bold text-zinc-900">Channel Unavailable</h1>
-        <p className="text-sm text-zinc-600">
+        <h1 className="text-xl font-bold text-zinc-900 dark:text-white">Channel Unavailable</h1>
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">
           This channel is currently unavailable due to a platform moderation action.
         </p>
         <button
@@ -160,7 +196,7 @@ export function ChannelProfilePage({
   return (
     <div className="max-w-[1440px] mx-auto pb-12">
       {/* Channel Banner */}
-      <div className="h-40 md:h-56 w-full bg-zinc-100 relative overflow-hidden">
+      <div className="h-40 md:h-56 w-full bg-zinc-100 dark:bg-[#141418] relative overflow-hidden">
         <MediaImage
           src={channel.bannerUrl || '/src/assets/images/thumb_himalayas_vlog_1794912702886.jpg'}
           alt={`${channel.displayName} banner`}
@@ -175,31 +211,31 @@ export function ChannelProfilePage({
             <MediaImage
               src={channel.avatarUrl}
               alt={channel.displayName}
-              className="w-24 h-24 md:w-28 md:h-28 rounded-full object-cover border-4 border-white bg-zinc-100 shadow-lg"
+              className="w-24 h-24 md:w-28 md:h-28 rounded-full object-cover border-4 border-white dark:border-[#09090B] bg-zinc-100 dark:bg-[#141418] shadow-lg"
             />
             <div className="pb-1 space-y-1">
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-2xl md:text-3xl font-bold font-display text-zinc-900">
+                <h1 className="text-2xl md:text-3xl font-bold font-display text-zinc-900 dark:text-white">
                   {channel.displayName}
                 </h1>
                 {channel.isVerified && (
-                  <BadgeCheck className="w-5 h-5 text-[#EA580C]" aria-label="Verified Creator" />
+                  <BadgeCheck className="w-5 h-5 text-[#EA580C] dark:text-[#F97316]" aria-label="Verified Creator" />
                 )}
                 {(channel.boostEnabled || channel.isEarlyCreator) && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-orange-50 border border-orange-200 text-[11px] font-semibold text-[#EA580C]">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-800/50 text-[11px] font-semibold text-[#EA580C] dark:text-[#FDBA74]">
                     <Rocket className="w-3 h-3" />
                     Rising Creator
                   </span>
                 )}
               </div>
-              <div className="flex flex-wrap items-center gap-x-2 text-xs text-zinc-500">
+              <div className="flex flex-wrap items-center gap-x-2 text-xs text-zinc-500 dark:text-zinc-400">
                 <span>@{channel.handle}</span>
                 <span aria-hidden="true">·</span>
                 <span className="tabular-nums">{formatCount(channel.subscribersCount)} subscribers</span>
                 <span aria-hidden="true">·</span>
                 <span className="tabular-nums">{channelVideos.length + channelShorts.length} uploads</span>
                 <span aria-hidden="true">·</span>
-                <span className="text-[#EA580C] font-semibold">{channel.preferredLanguage || 'Hindi'}</span>
+                <span className="text-[#EA580C] dark:text-[#F97316] font-semibold">{channel.preferredLanguage || 'Hindi'}</span>
               </div>
             </div>
           </div>
@@ -217,7 +253,7 @@ export function ChannelProfilePage({
                 <button
                   type="button"
                   onClick={() => onNavigate('settings')}
-                  className="px-4 py-2.5 rounded-xl bg-zinc-100 hover:bg-zinc-200 border border-zinc-200 text-xs font-semibold text-zinc-900"
+                  className="px-4 py-2.5 rounded-xl bg-zinc-100 dark:bg-[#141418] hover:bg-zinc-200 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-xs font-semibold text-zinc-900 dark:text-white"
                 >
                   Edit Profile
                 </button>
@@ -233,7 +269,7 @@ export function ChannelProfilePage({
                   }}
                   className={`px-5 py-2.5 rounded-xl text-xs font-semibold transition-colors ${
                     isSubscribed
-                      ? 'bg-zinc-100 text-zinc-900 border border-zinc-200 hover:bg-zinc-200'
+                      ? 'bg-zinc-100 dark:bg-[#18181D] text-zinc-900 dark:text-zinc-200 border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-200 dark:hover:bg-zinc-800'
                       : 'bg-[#E11D48] hover:bg-[#BE123C] text-white'
                   }`}
                 >
@@ -242,15 +278,28 @@ export function ChannelProfilePage({
                 <button
                   type="button"
                   onClick={() => (user ? setShowCollabModal(true) : onNavigate('login'))}
-                  className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-zinc-100 hover:bg-zinc-200 border border-zinc-200 text-xs font-semibold text-zinc-900"
+                  className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-zinc-100 dark:bg-[#141418] hover:bg-zinc-200 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-xs font-semibold text-zinc-900 dark:text-white"
                 >
-                  <Handshake className="w-4 h-4 text-[#EA580C]" />
+                  <Handshake className="w-4 h-4 text-[#EA580C] dark:text-[#F97316]" />
                   <span>Collaborate</span>
                 </button>
                 <button
                   type="button"
-                  onClick={() => (user ? setShowSupport(true) : onNavigate('login'))}
-                  className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-orange-50 hover:bg-orange-100 border border-orange-200 text-xs font-semibold text-[#EA580C]"
+                  onClick={() => {
+                    if (!user) return onNavigate('login');
+                    setQrCheckout({
+                      serviceType: 'support',
+                      targetId: channel.uid,
+                      targetTitle: `Support ${channel.displayName}`,
+                      creatorId: channel.uid,
+                      creatorName: channel.displayName,
+                      defaultAmountInr: 100,
+                      minAmountInr: 10,
+                      maxAmountInr: 50000,
+                      allowCustomAmount: true,
+                    });
+                  }}
+                  className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-orange-50 dark:bg-orange-950/30 hover:bg-orange-100 dark:hover:bg-orange-950/50 border border-orange-200 dark:border-orange-800/50 text-xs font-semibold text-[#EA580C] dark:text-[#FDBA74]"
                 >
                   <HeartHandshake className="w-4 h-4" />
                   <span>Support</span>
@@ -261,10 +310,11 @@ export function ChannelProfilePage({
         </div>
 
         {/* Channel Tabs */}
-        <div className="flex items-center gap-6 border-b border-zinc-200 overflow-x-auto no-scrollbar">
+        <div className="flex items-center gap-6 border-b border-zinc-200 dark:border-zinc-800 overflow-x-auto no-scrollbar">
           {[
             { id: 'videos', label: 'Videos', icon: <Video className="w-4 h-4" /> },
             { id: 'shorts', label: 'Shorts', icon: <Smartphone className="w-4 h-4" /> },
+            { id: 'memberships', label: `Memberships (${membershipPlans.length})`, icon: <Crown className="w-4 h-4" /> },
             { id: 'playlists', label: 'Playlists', icon: <ListVideo className="w-4 h-4" /> },
             { id: 'community', label: 'Community', icon: <MessageSquare className="w-4 h-4" /> },
             { id: 'collabs', label: `Collaborations (${channelCollabs.length})`, icon: <Handshake className="w-4 h-4" /> },
@@ -276,8 +326,8 @@ export function ChannelProfilePage({
               onClick={() => setTab(t.id as any)}
               className={`flex items-center gap-2 py-3 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
                 tab === t.id
-                  ? 'border-[#E11D48] text-zinc-900 font-semibold'
-                  : 'border-transparent text-zinc-500 hover:text-zinc-900'
+                  ? 'border-[#E11D48] text-zinc-900 dark:text-white font-semibold'
+                  : 'border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
               }`}
             >
               {t.icon}
@@ -289,7 +339,7 @@ export function ChannelProfilePage({
         {tab === 'videos' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {channelVideos.length === 0 ? (
-              <p className="text-sm text-zinc-500 col-span-full py-8">No videos uploaded yet.</p>
+              <p className="text-sm text-zinc-500 dark:text-zinc-400 col-span-full py-8">No videos uploaded yet.</p>
             ) : (
               channelVideos.map((v) => (
                 <VideoCard
@@ -309,14 +359,14 @@ export function ChannelProfilePage({
         {tab === 'shorts' && (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
             {channelShorts.length === 0 ? (
-              <p className="text-sm text-zinc-500 col-span-full py-8">No Bharat Shorts uploaded yet.</p>
+              <p className="text-sm text-zinc-500 dark:text-zinc-400 col-span-full py-8">No Bharat Shorts uploaded yet.</p>
             ) : (
               channelShorts.map((s) => (
                 <button
                   key={s.id}
                   type="button"
                   onClick={() => onOpenShort(s.id)}
-                  className="relative aspect-[9/16] rounded-xl overflow-hidden bg-zinc-900 border border-zinc-200 text-left"
+                  className="relative aspect-[9/16] rounded-xl overflow-hidden bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-left"
                 >
                   <MediaImage src={s.thumbnailUrl} alt={s.title} className="w-full h-full object-cover" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-transparent" />
@@ -329,19 +379,123 @@ export function ChannelProfilePage({
           </div>
         )}
 
+        {tab === 'memberships' && (
+          <div className="space-y-4">
+            <div className="p-3.5 rounded-xl bg-zinc-50 dark:bg-[#111115] border border-zinc-200 dark:border-zinc-800 text-xs text-zinc-700 dark:text-zinc-300 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <span>
+                Pay via <strong>PhonePe, Google Pay, Paytm, or any UPI app</strong>. Memberships activate once your UTR is verified in the CEO Dashboard.
+              </span>
+              {user && (
+                <button
+                  type="button"
+                  onClick={() => onNavigate('payments')}
+                  className="text-xs font-semibold text-[#EA580C] dark:text-[#F97316] hover:underline shrink-0"
+                >
+                  View Payment History →
+                </button>
+              )}
+            </div>
+            {membershipPlans.length === 0 ? (
+              <div className="p-8 rounded-xl bg-zinc-50 dark:bg-[#111115] border border-zinc-200 dark:border-zinc-800 text-sm text-zinc-600 dark:text-zinc-400 text-center">
+                {channel.displayName} hasn’t launched monthly membership tiers yet.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                {membershipPlans.map((plan) => {
+                  const active = myMemberships.some(
+                    (m) => m.planId === plan.id && m.status === 'active' && m.paymentVerified
+                  );
+                  const pendingPlan = myPayments.find(
+                    (p) =>
+                      p.serviceType === 'membership' &&
+                      p.targetId === plan.id &&
+                      p.status === 'pending_verification'
+                  );
+                  return (
+                    <div key={plan.id} className="p-5 rounded-xl bg-zinc-50 dark:bg-[#111115] border border-zinc-200 dark:border-zinc-800 flex flex-col justify-between gap-4">
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-semibold text-[#EA580C] dark:text-[#F97316]">Tier {plan.tierLevel}</span>
+                          <span className="text-base font-bold font-mono tabular-nums text-zinc-900 dark:text-white">
+                            {formatInr(plan.priceInr)}/mo
+                          </span>
+                        </div>
+                        <h3 className="text-base font-bold text-zinc-900 dark:text-white">{plan.name}</h3>
+                        <p className="text-xs text-zinc-600 dark:text-zinc-400 whitespace-pre-line leading-relaxed">{plan.perks}</p>
+                        {pendingPlan && (
+                          <div className="text-[11px] font-mono text-amber-700 dark:text-amber-300 flex items-center gap-1">
+                            <Clock className="w-3.5 h-3.5 shrink-0" />
+                            <span>Pending UTR {pendingPlan.utrNumber}</span>
+                          </div>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        disabled={active}
+                        onClick={() => {
+                          if (!user) return onNavigate('login');
+                          setQrCheckout({
+                            serviceType: 'membership',
+                            targetId: plan.id,
+                            targetTitle: `${channel.displayName} — ${plan.name}`,
+                            creatorId: channel.uid,
+                            creatorName: channel.displayName,
+                            defaultAmountInr: plan.priceInr,
+                            minAmountInr: Math.max(29, plan.priceInr),
+                            allowCustomAmount: false,
+                          });
+                        }}
+                        className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#E11D48] to-[#F97316] hover:opacity-95 disabled:opacity-50 text-xs font-semibold text-white"
+                      >
+                        {active
+                          ? 'Active Member'
+                          : pendingPlan
+                          ? 'Submit Another UTR'
+                          : `Join via UPI QR · ${formatInr(plan.priceInr)}/mo`}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Viewer's Support History to this creator */}
+            {user && mySupports.filter((s) => s.creatorId === channel.uid).length > 0 && (
+              <div className="p-5 rounded-xl bg-white dark:bg-[#111115] border border-zinc-200 dark:border-zinc-800 space-y-3">
+                <h3 className="text-sm font-bold text-zinc-900 dark:text-white">Your Support History with {channel.displayName}</h3>
+                <div className="divide-y divide-zinc-200 dark:divide-zinc-800 text-xs">
+                  {mySupports
+                    .filter((s) => s.creatorId === channel.uid)
+                    .map((s) => (
+                      <div key={s.id} className="py-2 flex items-center justify-between gap-4">
+                        <div>
+                          <span className="font-mono font-semibold text-zinc-900 dark:text-white">{formatInr(s.amountInr)}</span>
+                          <span className="text-zinc-500 dark:text-zinc-400 ml-2">{s.message || 'Direct channel support'}</span>
+                        </div>
+                        <span className="text-[11px] font-mono uppercase text-zinc-600 dark:text-zinc-400">
+                          {s.status || (s.paymentVerified ? 'verified' : 'pending')}
+                        </span>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {tab === 'playlists' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {playlistsToShow.length === 0 ? (
-              <p className="text-sm text-zinc-500 col-span-full py-8">No playlists created yet.</p>
+              <p className="text-sm text-zinc-500 dark:text-zinc-400 col-span-full py-8">No playlists created yet.</p>
             ) : (
               playlistsToShow.map((pl) => (
-                <div key={pl.id} className="p-4 rounded-xl bg-zinc-50 border border-zinc-200 space-y-3">
-                  <div className="aspect-video rounded-lg overflow-hidden bg-zinc-100">
+                <div key={pl.id} className="p-4 rounded-xl bg-zinc-50 dark:bg-[#111115] border border-zinc-200 dark:border-zinc-800 space-y-3">
+                  <div className="aspect-video rounded-lg overflow-hidden bg-zinc-100 dark:bg-[#18181D]">
                     <MediaImage src={pl.thumbnailUrl} alt={pl.title} className="w-full h-full object-cover" />
                   </div>
                   <div>
-                    <div className="text-sm font-bold text-zinc-900">{pl.title}</div>
-                    <div className="text-xs text-zinc-500 mt-0.5 tabular-nums">
+                    <div className="text-sm font-bold text-zinc-900 dark:text-white">{pl.title}</div>
+                    <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5 tabular-nums">
                       {pl.videoIds.length} videos · {pl.visibility}
                     </div>
                   </div>
@@ -354,14 +508,14 @@ export function ChannelProfilePage({
         {tab === 'community' && (
           <div className="max-w-2xl space-y-4">
             {channelPosts.length === 0 ? (
-              <p className="text-sm text-zinc-500 py-8">No community posts yet.</p>
+              <p className="text-sm text-zinc-500 dark:text-zinc-400 py-8">No community posts yet.</p>
             ) : (
               channelPosts.map((post) => (
-                <div key={post.id} className="p-5 rounded-xl bg-zinc-50 border border-zinc-200 space-y-3">
-                  <div className="text-xs text-zinc-500">
+                <div key={post.id} className="p-5 rounded-xl bg-zinc-50 dark:bg-[#111115] border border-zinc-200 dark:border-zinc-800 space-y-3">
+                  <div className="text-xs text-zinc-500 dark:text-zinc-400">
                     {post.postType} · {formatRelativeDate(post.createdAt)}
                   </div>
-                  <p className="text-sm text-zinc-800">{post.content}</p>
+                  <p className="text-sm text-zinc-800 dark:text-zinc-200">{post.content}</p>
                   {post.postType === 'poll' && post.pollOptions && (
                     <div className="space-y-2">
                       {post.pollOptions.map((opt, idx) => (
@@ -369,10 +523,10 @@ export function ChannelProfilePage({
                           key={idx}
                           type="button"
                           onClick={() => voteCommunityPoll(post, idx)}
-                          className="w-full text-left px-3 py-2 rounded-lg bg-white hover:bg-zinc-100 border border-zinc-200 text-xs text-zinc-900 flex justify-between"
+                          className="w-full text-left px-3 py-2 rounded-lg bg-white dark:bg-[#18181D] hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-xs text-zinc-900 dark:text-white flex justify-between"
                         >
                           <span>{opt}</span>
-                          <span className="font-mono tabular-nums text-zinc-500">
+                          <span className="font-mono tabular-nums text-zinc-500 dark:text-zinc-400">
                             {post.pollVotes?.[idx] || 0} votes
                           </span>
                         </button>
@@ -388,8 +542,8 @@ export function ChannelProfilePage({
         {tab === 'collabs' && (
           <div className="space-y-4">
             {channelCollabs.length === 0 ? (
-              <div className="p-8 rounded-xl bg-zinc-50 border border-zinc-200 text-center space-y-2">
-                <p className="text-sm text-zinc-700">No accepted creator collaborations displayed yet.</p>
+              <div className="p-8 rounded-xl bg-zinc-50 dark:bg-[#111115] border border-zinc-200 dark:border-zinc-800 text-center space-y-2">
+                <p className="text-sm text-zinc-700 dark:text-zinc-300">No accepted creator collaborations displayed yet.</p>
                 {!isOwnChannel && (
                   <button
                     type="button"
@@ -407,20 +561,20 @@ export function ChannelProfilePage({
                   const partnerName = c.senderId === channelId ? c.recipientName : c.senderName;
                   const partnerAvatar = c.senderId === channelId ? c.recipientAvatar : c.senderAvatar;
                   return (
-                    <div key={c.id} className="p-4 rounded-xl bg-zinc-50 border border-zinc-200 flex items-start gap-3.5">
+                    <div key={c.id} className="p-4 rounded-xl bg-zinc-50 dark:bg-[#111115] border border-zinc-200 dark:border-zinc-800 flex items-start gap-3.5">
                       <button type="button" onClick={() => onOpenChannel(partnerId)}>
-                        <MediaImage src={partnerAvatar} alt={partnerName} className="w-11 h-11 rounded-full object-cover border border-zinc-200" />
+                        <MediaImage src={partnerAvatar} alt={partnerName} className="w-11 h-11 rounded-full object-cover border border-zinc-200 dark:border-zinc-700" />
                       </button>
                       <div className="min-w-0 flex-1 space-y-1">
-                        <div className="text-sm font-bold text-zinc-900">{c.title}</div>
+                        <div className="text-sm font-bold text-zinc-900 dark:text-white">{c.title}</div>
                         <button
                           type="button"
                           onClick={() => onOpenChannel(partnerId)}
-                          className="text-xs text-[#EA580C] hover:underline font-medium"
+                          className="text-xs text-[#EA580C] dark:text-[#F97316] hover:underline font-medium"
                         >
                           with {partnerName}
                         </button>
-                        <p className="text-xs text-zinc-600">{c.proposal}</p>
+                        <p className="text-xs text-zinc-600 dark:text-zinc-400">{c.proposal}</p>
                       </div>
                     </div>
                   );
@@ -431,27 +585,27 @@ export function ChannelProfilePage({
         )}
 
         {tab === 'about' && (
-          <div className="max-w-2xl p-6 rounded-xl bg-zinc-50 border border-zinc-200 space-y-4">
-            <h2 className="text-base font-bold text-zinc-900">About {channel.displayName}</h2>
-            <p className="text-sm text-zinc-700 leading-relaxed">
+          <div className="max-w-2xl p-6 rounded-xl bg-zinc-50 dark:bg-[#111115] border border-zinc-200 dark:border-zinc-800 space-y-4">
+            <h2 className="text-base font-bold text-zinc-900 dark:text-white">About {channel.displayName}</h2>
+            <p className="text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed">
               {channel.bio || 'Creator on BharatPlay.'}
             </p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 pt-4 border-t border-zinc-200 text-xs">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 pt-4 border-t border-zinc-200 dark:border-zinc-800 text-xs">
               <div>
-                <div className="text-zinc-500">Total Views</div>
-                <div className="text-base font-bold font-mono tabular-nums text-zinc-900 mt-0.5">
+                <div className="text-zinc-500 dark:text-zinc-400">Total Views</div>
+                <div className="text-base font-bold font-mono tabular-nums text-zinc-900 dark:text-white mt-0.5">
                   {formatCount(channel.totalViews)}
                 </div>
               </div>
               <div>
-                <div className="text-zinc-500">Primary Language</div>
-                <div className="text-base font-bold text-zinc-900 mt-0.5">
+                <div className="text-zinc-500 dark:text-zinc-400">Primary Language</div>
+                <div className="text-base font-bold text-zinc-900 dark:text-white mt-0.5">
                   {channel.preferredLanguage || 'Hindi'}
                 </div>
               </div>
               <div>
-                <div className="text-zinc-500">BharatPlay Tier</div>
-                <div className="text-base font-bold text-[#EA580C] mt-0.5">
+                <div className="text-zinc-500 dark:text-zinc-400">BharatPlay Tier</div>
+                <div className="text-base font-bold text-[#EA580C] dark:text-[#F97316] mt-0.5">
                   {channel.rewardTier || 'Seed'}
                 </div>
               </div>
@@ -460,68 +614,16 @@ export function ChannelProfilePage({
         )}
       </div>
 
-      {/* Support Modal */}
-      {showSupport && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <form
-            onSubmit={async (e) => {
-              e.preventDefault();
-              if (!profile) return;
-              await sendCreatorSupport({
-                supporter: profile,
-                creatorId: channel.uid,
-                creatorName: channel.displayName,
-                amountInr: supportAmount,
-                message: supportNote,
-              });
-              setShowSupport(false);
-              setSupportNote('');
-              showToast(`Sent ${formatInr(supportAmount)} support to ${channel.displayName}!`, 'success');
-            }}
-            className="w-full max-w-md bg-white border border-zinc-200 shadow-2xl rounded-2xl p-6 space-y-4 text-zinc-900"
-          >
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold">Support {channel.displayName}</h3>
-              <button type="button" onClick={() => setShowSupport(false)} className="text-zinc-500 hover:text-zinc-900">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="grid grid-cols-4 gap-2">
-              {[50, 100, 250, 500].map((amt) => (
-                <button
-                  key={amt}
-                  type="button"
-                  onClick={() => setSupportAmount(amt)}
-                  className={`py-2 rounded-xl text-xs font-mono border ${
-                    supportAmount === amt ? 'bg-[#F97316] border-[#F97316] text-white' : 'bg-zinc-50 border-zinc-200 text-zinc-700 hover:bg-zinc-100'
-                  }`}
-                >
-                  ₹{amt}
-                </button>
-              ))}
-            </div>
-            <input
-              type="text"
-              value={supportNote}
-              onChange={(e) => setSupportNote(e.target.value)}
-              placeholder="Write an appreciation note..."
-              className="w-full px-3 py-2 rounded-xl bg-white border border-zinc-300 text-xs text-zinc-900 placeholder-zinc-400"
-            />
-            <div className="flex justify-end gap-2">
-              <button type="button" onClick={() => setShowSupport(false)} className="px-4 py-2 text-xs text-zinc-600 hover:text-zinc-900">
-                Cancel
-              </button>
-              <button type="submit" className="px-4 py-2 rounded-xl bg-[#E11D48] hover:bg-[#BE123C] text-xs font-semibold text-white">
-                Send {formatInr(supportAmount)}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+      <UpiQrPaymentModal
+        open={Boolean(qrCheckout)}
+        request={qrCheckout}
+        onClose={() => setQrCheckout(null)}
+        onNavigate={onNavigate}
+      />
 
       {/* Collaboration Request Modal */}
       {showCollabModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-black/50 dark:bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
           <form
             onSubmit={async (e) => {
               e.preventDefault();
@@ -544,14 +646,14 @@ export function ChannelProfilePage({
                 setSendingCollab(false);
               }
             }}
-            className="w-full max-w-md bg-white border border-zinc-200 shadow-2xl rounded-2xl p-6 space-y-4 text-zinc-900"
+            className="w-full max-w-md bg-white dark:bg-[#111115] border border-zinc-200 dark:border-zinc-800 shadow-2xl rounded-2xl p-6 space-y-4 text-zinc-900 dark:text-white"
           >
             <div className="flex items-center justify-between">
               <h3 className="text-base font-bold flex items-center gap-2">
-                <Handshake className="w-4 h-4 text-[#EA580C]" />
+                <Handshake className="w-4 h-4 text-[#EA580C] dark:text-[#F97316]" />
                 <span>Collaborate with {channel.displayName}</span>
               </h3>
-              <button type="button" onClick={() => setShowCollabModal(false)} className="text-zinc-500 hover:text-zinc-900">
+              <button type="button" onClick={() => setShowCollabModal(false)} className="text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -562,7 +664,7 @@ export function ChannelProfilePage({
               value={collabTitle}
               onChange={(e) => setCollabTitle(e.target.value)}
               placeholder="Project title (e.g., Joint Hindi/Telugu Tech Podcast)"
-              className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-zinc-300 text-xs text-zinc-900 placeholder-zinc-400"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-[#09090B] border border-zinc-300 dark:border-zinc-700 text-xs text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-zinc-500"
             />
             <textarea
               rows={3}
@@ -571,10 +673,10 @@ export function ChannelProfilePage({
               value={collabProposal}
               onChange={(e) => setCollabProposal(e.target.value)}
               placeholder="Describe your video concept, timeline, and co-production idea..."
-              className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-zinc-300 text-xs text-zinc-900 placeholder-zinc-400"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-[#09090B] border border-zinc-300 dark:border-zinc-700 text-xs text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-zinc-500"
             />
             <div className="flex justify-end gap-2">
-              <button type="button" onClick={() => setShowCollabModal(false)} className="px-4 py-2 text-xs text-zinc-600 hover:text-zinc-900">
+              <button type="button" onClick={() => setShowCollabModal(false)} className="px-4 py-2 text-xs text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white">
                 Cancel
               </button>
               <button

@@ -167,13 +167,13 @@ export function HomePage({
     if (loading && list.length === 0) return <VideoGridSkeleton count={4} />;
     if (list.length === 0) {
       return (
-        <div className="p-8 rounded-2xl bg-zinc-50 border border-zinc-200 text-center space-y-2">
-          <p className="text-sm font-medium text-zinc-700">{emptyLabel}</p>
+        <div className="p-8 rounded-2xl bg-zinc-50 dark:bg-[#111115] border border-zinc-200 dark:border-zinc-800 text-center space-y-2">
+          <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{emptyLabel}</p>
           {selectedCategory !== 'All' && (
             <button
               type="button"
               onClick={() => setSelectedCategory('All')}
-              className="px-4 py-1.5 rounded-lg bg-zinc-200 hover:bg-zinc-300 text-xs font-semibold text-zinc-900"
+              className="px-4 py-1.5 rounded-lg bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-700 text-xs font-semibold text-zinc-900 dark:text-white"
             >
               Reset Category Filter
             </button>
@@ -206,21 +206,21 @@ export function HomePage({
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.25 }}
-        className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-zinc-50 via-white to-orange-50/60 border border-zinc-200 p-6 md:p-9"
+        className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-zinc-50 via-white to-orange-50/60 dark:from-[#141418] dark:via-[#111115] dark:to-orange-950/20 border border-zinc-200 dark:border-zinc-800 p-6 md:p-9"
       >
         <div className="absolute -right-24 -top-24 w-72 h-72 rounded-full bg-[#E11D48]/10 blur-3xl pointer-events-none" />
         <div className="absolute -left-16 -bottom-24 w-64 h-64 rounded-full bg-[#F97316]/10 blur-3xl pointer-events-none" />
 
         <div className="relative flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="max-w-2xl space-y-3">
-            <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#EA580C]">
+            <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#EA580C] dark:text-[#F97316]">
               <Sparkles className="w-3.5 h-3.5" />
               <span>India Creates. India Watches.</span>
             </div>
-            <h1 className="text-2xl md:text-4xl font-bold font-display text-zinc-900 leading-tight">
+            <h1 className="text-2xl md:text-4xl font-bold font-display text-zinc-900 dark:text-white leading-tight">
               Creator-First Indian Streaming, Live & Watch Parties
             </h1>
-            <p className="text-sm md:text-base text-zinc-600 leading-relaxed">
+            <p className="text-sm md:text-base text-zinc-600 dark:text-zinc-400 leading-relaxed">
               Discover independent creators across 8+ Indian languages, compete in the monthly Creator League, and watch synchronized streams with friends.
             </p>
           </div>
@@ -237,15 +237,15 @@ export function HomePage({
             <button
               type="button"
               onClick={() => onNavigate('league')}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white hover:bg-zinc-100 border border-zinc-200 text-xs sm:text-sm font-semibold text-zinc-900 transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white dark:bg-[#18181D] hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-xs sm:text-sm font-semibold text-zinc-900 dark:text-white transition-colors"
             >
-              <Trophy className="w-4 h-4 text-[#EA580C]" />
+              <Trophy className="w-4 h-4 text-[#EA580C] dark:text-[#F97316]" />
               <span>Creator League</span>
             </button>
             <button
               type="button"
               onClick={() => onNavigate('watch-party')}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white hover:bg-zinc-100 border border-zinc-200 text-xs sm:text-sm font-semibold text-zinc-900 transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white dark:bg-[#18181D] hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-xs sm:text-sm font-semibold text-zinc-900 dark:text-white transition-colors"
             >
               <Tv className="w-4 h-4 text-[#E11D48]" />
               <span>Watch Party</span>
@@ -264,7 +264,7 @@ export function HomePage({
             className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap border transition-colors ${
               selectedCategory === cat
                 ? 'bg-[#E11D48] border-[#E11D48] text-white'
-                : 'bg-zinc-50 border-zinc-200 text-zinc-600 hover:text-zinc-900 hover:border-zinc-300'
+                : 'bg-zinc-50 dark:bg-[#141418] border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white hover:border-zinc-300 dark:hover:border-zinc-700'
             }`}
           >
             {cat}
@@ -276,14 +276,14 @@ export function HomePage({
       {continueWatchingItems.length > 0 && (
         <section className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="flex items-center gap-2 text-lg font-bold font-display text-zinc-900">
-              <Clock className="w-5 h-5 text-[#EA580C]" />
+            <h2 className="flex items-center gap-2 text-lg font-bold font-display text-zinc-900 dark:text-white">
+              <Clock className="w-5 h-5 text-[#EA580C] dark:text-[#F97316]" />
               <span>Continue Watching</span>
             </h2>
             <button
               type="button"
               onClick={() => onNavigate('history')}
-              className="text-xs font-semibold text-zinc-500 hover:text-zinc-900 inline-flex items-center gap-1"
+              className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white inline-flex items-center gap-1"
             >
               <span>Watch History</span>
               <ChevronRight className="w-3.5 h-3.5" />
@@ -301,14 +301,14 @@ export function HomePage({
       {liveNowStreams.length > 0 && (
         <section className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="flex items-center gap-2 text-lg font-bold font-display text-zinc-900">
+            <h2 className="flex items-center gap-2 text-lg font-bold font-display text-zinc-900 dark:text-white">
               <Radio className="w-5 h-5 text-[#E11D48]" />
               <span>Live Now</span>
             </h2>
             <button
               type="button"
               onClick={() => onNavigate('live')}
-              className="text-xs font-semibold text-zinc-500 hover:text-zinc-900 inline-flex items-center gap-1"
+              className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white inline-flex items-center gap-1"
             >
               <span>All Streams</span>
               <ChevronRight className="w-3.5 h-3.5" />
@@ -321,7 +321,7 @@ export function HomePage({
                 key={stream.id}
                 type="button"
                 onClick={() => onNavigate('live', stream.id)}
-                className="group text-left rounded-xl bg-white border border-zinc-200 hover:border-[#E11D48]/50 overflow-hidden transition-colors"
+                className="group text-left rounded-xl bg-white dark:bg-[#111115] border border-zinc-200 dark:border-zinc-800 hover:border-[#E11D48]/50 overflow-hidden transition-colors"
               >
                 <div className="relative aspect-video">
                   <MediaImage
@@ -339,10 +339,10 @@ export function HomePage({
                   </span>
                 </div>
                 <div className="p-3.5 space-y-1">
-                  <div className="text-sm font-semibold text-zinc-900 line-clamp-1 group-hover:text-[#E11D48]">
+                  <div className="text-sm font-semibold text-zinc-900 dark:text-white line-clamp-1 group-hover:text-[#E11D48]">
                     {stream.title}
                   </div>
-                  <div className="text-xs text-zinc-500 truncate">
+                  <div className="text-xs text-zinc-500 dark:text-zinc-400 truncate">
                     {stream.creatorName} · {stream.language || 'Hindi'}
                   </div>
                 </div>
@@ -355,14 +355,14 @@ export function HomePage({
       {/* 3. Trending in India */}
       <section className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="flex items-center gap-2 text-lg font-bold font-display text-zinc-900">
+          <h2 className="flex items-center gap-2 text-lg font-bold font-display text-zinc-900 dark:text-white">
             <Flame className="w-5 h-5 text-[#E11D48]" />
             <span>Trending in India</span>
           </h2>
           <button
             type="button"
             onClick={() => onNavigate('explore')}
-            className="text-xs font-semibold text-zinc-500 hover:text-zinc-900 inline-flex items-center gap-1"
+            className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white inline-flex items-center gap-1"
           >
             <span>Explore More</span>
             <ChevronRight className="w-3.5 h-3.5" />
@@ -375,11 +375,11 @@ export function HomePage({
       <section className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="flex items-center gap-2 text-lg font-bold font-display text-zinc-900">
-              <Sparkles className="w-5 h-5 text-[#EA580C]" />
+            <h2 className="flex items-center gap-2 text-lg font-bold font-display text-zinc-900 dark:text-white">
+              <Sparkles className="w-5 h-5 text-[#EA580C] dark:text-[#F97316]" />
               <span>Recommended For You</span>
             </h2>
-            <p className="text-xs text-zinc-500 mt-0.5">
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
               Curated by viewer retention, language preferences{preferredLanguage ? ` (${preferredLanguage})` : ''}, and authentic engagement.
             </p>
           </div>
@@ -391,18 +391,18 @@ export function HomePage({
       <section className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="flex items-center gap-2 text-lg font-bold font-display text-zinc-900">
-              <Rocket className="w-5 h-5 text-[#EA580C]" />
+            <h2 className="flex items-center gap-2 text-lg font-bold font-display text-zinc-900 dark:text-white">
+              <Rocket className="w-5 h-5 text-[#EA580C] dark:text-[#F97316]" />
               <span>Rising Indian Creators</span>
             </h2>
-            <p className="text-xs text-zinc-500 mt-0.5">
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
               Creator Boost Spotlight · Ranked transparently by real engagement and watch retention
             </p>
           </div>
           <button
             type="button"
             onClick={() => onNavigate('boost')}
-            className="text-xs font-semibold text-[#EA580C] hover:underline inline-flex items-center gap-1"
+            className="text-xs font-semibold text-[#EA580C] dark:text-[#F97316] hover:underline inline-flex items-center gap-1"
           >
             <span>Creator Boost Hub</span>
             <ChevronRight className="w-3.5 h-3.5" />
@@ -412,7 +412,7 @@ export function HomePage({
         {loading && risingCreators.length === 0 ? (
           <CreatorGridSkeleton count={4} />
         ) : risingCreators.length === 0 ? (
-          <div className="p-6 rounded-xl bg-zinc-50 border border-zinc-200 text-sm text-zinc-600">
+          <div className="p-6 rounded-xl bg-zinc-50 dark:bg-[#111115] border border-zinc-200 dark:border-zinc-800 text-sm text-zinc-600 dark:text-zinc-400">
             Rising creators will appear here as channels join the Boost program.
           </div>
         ) : (
@@ -422,30 +422,30 @@ export function HomePage({
                 key={creator.uid}
                 type="button"
                 onClick={() => onOpenChannel(creator.uid)}
-                className="flex items-start gap-3.5 p-4 rounded-xl bg-white hover:bg-zinc-50 border border-zinc-200 hover:border-[#F97316]/50 text-left transition-colors"
+                className="flex items-start gap-3.5 p-4 rounded-xl bg-white dark:bg-[#111115] hover:bg-zinc-50 dark:hover:bg-[#16161C] border border-zinc-200 dark:border-zinc-800 hover:border-[#F97316]/50 text-left transition-colors"
               >
                 <MediaImage
                   src={creator.avatarUrl}
                   alt={creator.displayName}
-                  className="w-12 h-12 rounded-full object-cover shrink-0 border border-zinc-200"
+                  className="w-12 h-12 rounded-full object-cover shrink-0 border border-zinc-200 dark:border-zinc-700"
                 />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
-                    <span className="text-sm font-semibold text-zinc-900 truncate">
+                    <span className="text-sm font-semibold text-zinc-900 dark:text-white truncate">
                       {creator.displayName}
                     </span>
                     {creator.isVerified && (
-                      <BadgeCheck className="w-4 h-4 text-[#EA580C] shrink-0" />
+                      <BadgeCheck className="w-4 h-4 text-[#EA580C] dark:text-[#F97316] shrink-0" />
                     )}
                   </div>
-                  <div className="text-xs text-zinc-500 mt-0.5 tabular-nums">
+                  <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5 tabular-nums">
                     {formatCount(creator.subscribersCount)} subs · {creator.preferredLanguage || 'Hindi'}
                   </div>
                   <div className="mt-2 flex items-center gap-2 text-[11px] font-medium">
-                    <span className="px-2 py-0.5 rounded bg-orange-50 text-[#EA580C]">
+                    <span className="px-2 py-0.5 rounded bg-orange-50 dark:bg-orange-950/40 text-[#EA580C] dark:text-[#FDBA74]">
                       Rising Creator
                     </span>
-                    <span className="text-zinc-500 tabular-nums">
+                    <span className="text-zinc-500 dark:text-zinc-400 tabular-nums">
                       {retentionPct}% ret · {engagementRatePct}% eng
                     </span>
                   </div>
@@ -459,14 +459,14 @@ export function HomePage({
       {/* 6. Most Watched This Week */}
       <section className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="flex items-center gap-2 text-lg font-bold font-display text-zinc-900">
+          <h2 className="flex items-center gap-2 text-lg font-bold font-display text-zinc-900 dark:text-white">
             <TrendingUp className="w-5 h-5 text-[#E11D48]" />
             <span>Most Watched This Week</span>
           </h2>
           <button
             type="button"
             onClick={() => onNavigate('explore')}
-            className="text-xs font-semibold text-zinc-500 hover:text-zinc-900 inline-flex items-center gap-1"
+            className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white inline-flex items-center gap-1"
           >
             <span>See Charts</span>
             <ChevronRight className="w-3.5 h-3.5" />
@@ -479,11 +479,11 @@ export function HomePage({
       <section className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="flex items-center gap-2 text-lg font-bold font-display text-zinc-900">
+            <h2 className="flex items-center gap-2 text-lg font-bold font-display text-zinc-900 dark:text-white">
               <Play className="w-5 h-5 text-[#E11D48] fill-[#E11D48]" />
               <span>BharatPlay Originals</span>
             </h2>
-            <p className="text-xs text-zinc-500 mt-0.5">
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
               Flagship documentaries, science labs, and studio performances produced across India.
             </p>
           </div>
@@ -495,11 +495,11 @@ export function HomePage({
       <section className="space-y-4">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div>
-            <h2 className="flex items-center gap-2 text-lg font-bold font-display text-zinc-900">
-              <Globe2 className="w-5 h-5 text-[#EA580C]" />
+            <h2 className="flex items-center gap-2 text-lg font-bold font-display text-zinc-900 dark:text-white">
+              <Globe2 className="w-5 h-5 text-[#EA580C] dark:text-[#F97316]" />
               <span>Regional Spotlight</span>
             </h2>
-            <p className="text-xs text-zinc-500 mt-0.5">
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
               Switch languages to explore native storytelling across India.
             </p>
           </div>
@@ -513,7 +513,7 @@ export function HomePage({
                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap border transition-colors ${
                   spotlightLang === lang
                     ? 'bg-[#F97316] border-[#F97316] text-white'
-                    : 'bg-zinc-50 border-zinc-200 text-zinc-600 hover:text-zinc-900'
+                    : 'bg-zinc-50 dark:bg-[#141418] border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white'
                 }`}
               >
                 {lang}
@@ -528,21 +528,21 @@ export function HomePage({
       </section>
 
       {/* 9. New Creators to Watch */}
-      <section className="space-y-4 border-t border-zinc-200 pt-8">
+      <section className="space-y-4 border-t border-zinc-200 dark:border-zinc-800 pt-8">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="flex items-center gap-2 text-lg font-bold font-display text-zinc-900">
+            <h2 className="flex items-center gap-2 text-lg font-bold font-display text-zinc-900 dark:text-white">
               <Users className="w-5 h-5 text-[#E11D48]" />
               <span>New Creators to Watch</span>
             </h2>
-            <p className="text-xs text-zinc-500 mt-0.5">
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
               Fresh voices gaining momentum · {platformConfig.creatorRevenueSharePercent || 75}% creator revenue share
             </p>
           </div>
           <button
             type="button"
             onClick={() => onNavigate('explore')}
-            className="text-xs font-semibold text-zinc-500 hover:text-zinc-900 inline-flex items-center gap-1"
+            className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white inline-flex items-center gap-1"
           >
             <span>Discover All</span>
             <ChevronRight className="w-3.5 h-3.5" />
@@ -555,22 +555,22 @@ export function HomePage({
               key={c.uid}
               type="button"
               onClick={() => onOpenChannel(c.uid)}
-              className="flex items-center gap-3.5 p-4 rounded-xl bg-white hover:bg-zinc-50 border border-zinc-200 text-left transition-colors"
+              className="flex items-center gap-3.5 p-4 rounded-xl bg-white dark:bg-[#111115] hover:bg-zinc-50 dark:hover:bg-[#16161C] border border-zinc-200 dark:border-zinc-800 text-left transition-colors"
             >
               <MediaImage
                 src={c.avatarUrl}
                 alt={c.displayName}
-                className="w-12 h-12 rounded-full object-cover shrink-0 border border-zinc-200"
+                className="w-12 h-12 rounded-full object-cover shrink-0 border border-zinc-200 dark:border-zinc-700"
               />
               <div className="min-w-0">
                 <div className="flex items-center gap-1">
-                  <span className="text-sm font-semibold text-zinc-900 truncate">{c.displayName}</span>
-                  {c.isVerified && <BadgeCheck className="w-3.5 h-3.5 text-[#EA580C] shrink-0" />}
+                  <span className="text-sm font-semibold text-zinc-900 dark:text-white truncate">{c.displayName}</span>
+                  {c.isVerified && <BadgeCheck className="w-3.5 h-3.5 text-[#EA580C] dark:text-[#F97316] shrink-0" />}
                 </div>
-                <div className="text-xs text-zinc-500 mt-0.5 tabular-nums">
+                <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5 tabular-nums">
                   {formatCount(c.subscribersCount)} subscribers · {c.preferredLanguage || 'Hindi'}
                 </div>
-                <div className="text-[11px] text-[#EA580C] font-medium mt-0.5">
+                <div className="text-[11px] text-[#EA580C] dark:text-[#F97316] font-medium mt-0.5">
                   {c.rewardTier || 'Seed'} Tier · New Voice
                 </div>
               </div>

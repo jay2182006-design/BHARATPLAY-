@@ -40,8 +40,13 @@
         "role": { "type": "string", "enum": ["viewer", "creator", "admin", "ceo"] },
         "monetizationEnabled": { "type": "boolean" },
         "estimatedEarningsInr": { "type": "number" },
+        "availableBalanceInr": { "type": "number" },
+        "pendingBalanceInr": { "type": "number" },
+        "lifetimeEarningsInr": { "type": "number" },
+        "monetizationTermsAcceptedAt": { "type": "string" },
         "upiId": { "type": "string", "maxLength": 100 },
         "notificationsEnabled": { "type": "boolean" },
+        "themePreference": { "type": "string", "enum": ["dark", "light"] },
         "suspended": { "type": "boolean" },
         "suspensionReason": { "type": "string", "maxLength": 500 },
         "updatedAt": { "type": "string", "format": "date-time" }
@@ -50,13 +55,31 @@
     },
     "AdminRole": {
       "title": "AdminRole",
-      "description": "Trusted server-verified admin role marker document.",
+      "description": "Trusted server-verified admin role document with explicit CEO-granted permissions.",
       "type": "object",
       "properties": {
         "uid": { "type": "string", "maxLength": 128 },
-        "grantedAt": { "type": "string", "format": "date-time" }
+        "displayName": { "type": "string", "maxLength": 80 },
+        "email": { "type": "string", "maxLength": 160 },
+        "permissions": {
+          "type": "object",
+          "properties": {
+            "moderateVideos": { "type": "boolean" },
+            "resolveReports": { "type": "boolean" },
+            "manageCreators": { "type": "boolean" },
+            "manageCompetitions": { "type": "boolean" },
+            "manageAnnouncements": { "type": "boolean" },
+            "manageCategories": { "type": "boolean" },
+            "manageMonetization": { "type": "boolean" }
+          },
+          "required": ["moderateVideos", "resolveReports", "manageCreators", "manageCompetitions", "manageAnnouncements", "manageCategories"]
+        },
+        "grantedBy": { "type": "string", "maxLength": 128 },
+        "notes": { "type": "string", "maxLength": 300 },
+        "grantedAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["uid", "grantedAt"]
+      "required": ["uid", "permissions", "grantedBy", "grantedAt", "updatedAt"]
     },
     "CeoRole": {
       "title": "CeoRole",
@@ -71,13 +94,14 @@
     },
     "CeoAuditLog": {
       "title": "CeoAuditLog",
-      "description": "Immutable, permanent audit trail of all CEO Command Center administrative actions.",
+      "description": "Immutable, permanent audit trail of all CEO and Admin governance actions.",
       "type": "object",
       "properties": {
         "actorUid": { "type": "string", "maxLength": 128 },
         "actorEmail": { "type": "string", "maxLength": 160 },
+        "actorRole": { "type": "string", "enum": ["ceo", "admin"] },
         "action": { "type": "string", "minLength": 2, "maxLength": 80 },
-        "targetType": { "type": "string", "enum": ["user", "channel", "video", "report", "announcement", "system"] },
+        "targetType": { "type": "string", "enum": ["user", "channel", "video", "report", "announcement", "system", "admin", "payout", "config", "competition", "challenge", "monetization", "dispute", "traffic", "brand", "payment"] },
         "targetId": { "type": "string", "minLength": 1, "maxLength": 128 },
         "targetLabel": { "type": "string", "maxLength": 150 },
         "reason": { "type": "string", "minLength": 2, "maxLength": 500 },
@@ -86,6 +110,25 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["actorUid", "action", "targetType", "targetId", "reason", "status", "createdAt"]
+    },
+    "CreatorPayout": {
+      "title": "CreatorPayout",
+      "description": "Creator payout requests and CEO-processed UPI payout ledger.",
+      "type": "object",
+      "properties": {
+        "creatorId": { "type": "string", "maxLength": 128 },
+        "creatorName": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "creatorHandle": { "type": "string", "maxLength": 40 },
+        "upiId": { "type": "string", "minLength": 3, "maxLength": 100 },
+        "amountInr": { "type": "number" },
+        "periodLabel": { "type": "string", "maxLength": 60 },
+        "status": { "type": "string", "enum": ["pending", "approved", "paid", "rejected"] },
+        "notes": { "type": "string", "maxLength": 300 },
+        "processedByUid": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["creatorId", "creatorName", "upiId", "amountInr", "status", "createdAt", "updatedAt"]
     },
     "Video": {
       "title": "Video",
@@ -107,6 +150,10 @@
         "challengeId": { "type": "string", "maxLength": 128 },
         "tags": { "type": "array" },
         "chapters": { "type": "array" },
+        "accessType": { "type": "string", "enum": ["free", "members_only", "paid"] },
+        "priceInr": { "type": "number" },
+        "adsEnabled": { "type": "boolean" },
+        "adEligibility": { "type": "string", "enum": ["eligible", "limited", "ineligible"] },
         "viewsCount": { "type": "number" },
         "uniqueViewersCount": { "type": "number" },
         "totalWatchSeconds": { "type": "number" },
@@ -246,6 +293,9 @@
         "creatorName": { "type": "string", "maxLength": 80 },
         "amountInr": { "type": "number" },
         "message": { "type": "string", "maxLength": 280 },
+        "paymentOrderId": { "type": "string", "maxLength": 128 },
+        "paymentVerified": { "type": "boolean" },
+        "status": { "type": "string", "enum": ["pending_verification", "verified", "rejected", "refunded"] },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["supporterId", "creatorId", "amountInr", "createdAt"]
@@ -427,10 +477,265 @@
         "languages": { "type": "array" },
         "earlyCreatorBoostEnabled": { "type": "boolean" },
         "creatorRevenueSharePercent": { "type": "number" },
+        "adSharePercent": { "type": "number" },
+        "membershipSharePercent": { "type": "number" },
+        "supportSharePercent": { "type": "number" },
+        "paidVideoSharePercent": { "type": "number" },
+        "paymentGatewayMode": { "type": "string", "enum": ["unconfigured", "test", "live"] },
+        "minPayoutInr": { "type": "number" },
         "maintenanceMode": { "type": "boolean" },
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["categories", "languages", "earlyCreatorBoostEnabled", "creatorRevenueSharePercent", "updatedAt"]
+    },
+    "AdRevenueRecord": {
+      "title": "AdRevenueRecord",
+      "description": "Verified video advertisement revenue record calculated with invalid-traffic filtering.",
+      "type": "object",
+      "properties": {
+        "videoId": { "type": "string", "maxLength": 128 },
+        "videoTitle": { "type": "string", "maxLength": 150 },
+        "creatorId": { "type": "string", "maxLength": 128 },
+        "creatorName": { "type": "string", "maxLength": 80 },
+        "periodLabel": { "type": "string", "maxLength": 60 },
+        "validImpressions": { "type": "number" },
+        "invalidImpressionsBlocked": { "type": "number" },
+        "grossAdRevenueInr": { "type": "number" },
+        "creatorSharePercent": { "type": "number" },
+        "creatorNetInr": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "verified", "invalidated"] },
+        "notes": { "type": "string", "maxLength": 300 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["videoId", "videoTitle", "creatorId", "creatorName", "periodLabel", "validImpressions", "invalidImpressionsBlocked", "grossAdRevenueInr", "creatorSharePercent", "creatorNetInr", "status", "createdAt"]
+    },
+    "MembershipPlan": {
+      "title": "MembershipPlan",
+      "description": "Creator-defined monthly membership tier.",
+      "type": "object",
+      "properties": {
+        "creatorId": { "type": "string", "maxLength": 128 },
+        "creatorName": { "type": "string", "maxLength": 80 },
+        "name": { "type": "string", "minLength": 2, "maxLength": 60 },
+        "tierLevel": { "type": "number" },
+        "priceInr": { "type": "number" },
+        "perks": { "type": "string", "minLength": 4, "maxLength": 400 },
+        "isActive": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["creatorId", "creatorName", "name", "tierLevel", "priceInr", "perks", "isActive", "createdAt", "updatedAt"]
+    },
+    "CreatorMembership": {
+      "title": "CreatorMembership",
+      "description": "Viewer subscription to a creator membership plan.",
+      "type": "object",
+      "properties": {
+        "planId": { "type": "string", "maxLength": 128 },
+        "planName": { "type": "string", "maxLength": 60 },
+        "creatorId": { "type": "string", "maxLength": 128 },
+        "creatorName": { "type": "string", "maxLength": 80 },
+        "memberId": { "type": "string", "maxLength": 128 },
+        "memberName": { "type": "string", "maxLength": 80 },
+        "priceInr": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "active", "cancelled", "expired", "rejected"] },
+        "paymentOrderId": { "type": "string", "maxLength": 128 },
+        "paymentVerified": { "type": "boolean" },
+        "renewsAt": { "type": "string", "maxLength": 60 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["planId", "planName", "creatorId", "creatorName", "memberId", "memberName", "priceInr", "status", "paymentVerified", "createdAt", "updatedAt"]
+    },
+    "BrandCampaign": {
+      "title": "BrandCampaign",
+      "description": "BharatPlay Brand Connect sponsorship campaign.",
+      "type": "object",
+      "properties": {
+        "brandName": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "brandId": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "minLength": 3, "maxLength": 120 },
+        "description": { "type": "string", "minLength": 5, "maxLength": 1000 },
+        "budgetInr": { "type": "number" },
+        "category": { "type": "string", "maxLength": 50 },
+        "deliverables": { "type": "string", "maxLength": 500 },
+        "deadline": { "type": "string", "maxLength": 40 },
+        "status": { "type": "string", "enum": ["open", "in_progress", "completed", "closed"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["brandName", "brandId", "title", "description", "budgetInr", "category", "deliverables", "deadline", "status", "createdAt", "updatedAt"]
+    },
+    "BrandApplication": {
+      "title": "BrandApplication",
+      "description": "Creator sponsorship application and deliverable tracker for Brand Connect.",
+      "type": "object",
+      "properties": {
+        "campaignId": { "type": "string", "maxLength": 128 },
+        "campaignTitle": { "type": "string", "maxLength": 120 },
+        "brandName": { "type": "string", "maxLength": 80 },
+        "creatorId": { "type": "string", "maxLength": 128 },
+        "creatorName": { "type": "string", "maxLength": 80 },
+        "pitch": { "type": "string", "minLength": 5, "maxLength": 800 },
+        "proposedFeeInr": { "type": "number" },
+        "status": { "type": "string", "enum": ["applied", "shortlisted", "approved", "delivered", "paid", "rejected"] },
+        "deliverableUrl": { "type": "string", "maxLength": 500 },
+        "reviewNotes": { "type": "string", "maxLength": 300 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["campaignId", "campaignTitle", "brandName", "creatorId", "creatorName", "pitch", "proposedFeeInr", "status", "createdAt", "updatedAt"]
+    },
+    "AffiliateLink": {
+      "title": "AffiliateLink",
+      "description": "Creator affiliate tracking link with click and conversion metrics.",
+      "type": "object",
+      "properties": {
+        "creatorId": { "type": "string", "maxLength": 128 },
+        "creatorName": { "type": "string", "maxLength": 80 },
+        "code": { "type": "string", "minLength": 4, "maxLength": 32 },
+        "targetUrl": { "type": "string", "minLength": 8, "maxLength": 500 },
+        "productTitle": { "type": "string", "minLength": 2, "maxLength": 120 },
+        "merchantName": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "commissionPercent": { "type": "number" },
+        "clicksCount": { "type": "number" },
+        "validClicksCount": { "type": "number" },
+        "conversionsCount": { "type": "number" },
+        "earnedInr": { "type": "number" },
+        "isActive": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["creatorId", "creatorName", "code", "targetUrl", "productTitle", "merchantName", "commissionPercent", "clicksCount", "validClicksCount", "conversionsCount", "earnedInr", "isActive", "createdAt", "updatedAt"]
+    },
+    "AffiliateEvent": {
+      "title": "AffiliateEvent",
+      "description": "Tracked affiliate click or purchase conversion event.",
+      "type": "object",
+      "properties": {
+        "linkId": { "type": "string", "maxLength": 128 },
+        "code": { "type": "string", "maxLength": 32 },
+        "creatorId": { "type": "string", "maxLength": 128 },
+        "eventType": { "type": "string", "enum": ["click", "conversion"] },
+        "orderRef": { "type": "string", "maxLength": 128 },
+        "saleAmountInr": { "type": "number" },
+        "commissionInr": { "type": "number" },
+        "isInvalidTraffic": { "type": "boolean" },
+        "status": { "type": "string", "enum": ["recorded", "pending", "verified", "rejected"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["linkId", "code", "creatorId", "eventType", "saleAmountInr", "commissionInr", "isInvalidTraffic", "status", "createdAt"]
+    },
+    "VideoPurchase": {
+      "title": "VideoPurchase",
+      "description": "Server-verified paid video unlock record.",
+      "type": "object",
+      "properties": {
+        "videoId": { "type": "string", "maxLength": 128 },
+        "videoTitle": { "type": "string", "maxLength": 150 },
+        "creatorId": { "type": "string", "maxLength": 128 },
+        "creatorName": { "type": "string", "maxLength": 80 },
+        "buyerId": { "type": "string", "maxLength": 128 },
+        "buyerName": { "type": "string", "maxLength": 80 },
+        "amountInr": { "type": "number" },
+        "creatorNetInr": { "type": "number" },
+        "platformFeeInr": { "type": "number" },
+        "paymentOrderId": { "type": "string", "maxLength": 128 },
+        "paymentVerified": { "type": "boolean" },
+        "status": { "type": "string", "enum": ["pending_verification", "verified", "rejected", "refunded", "disputed"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["videoId", "videoTitle", "creatorId", "creatorName", "buyerId", "buyerName", "amountInr", "creatorNetInr", "platformFeeInr", "paymentVerified", "status", "createdAt"]
+    },
+    "MonetizationTransaction": {
+      "title": "MonetizationTransaction",
+      "description": "Auditable creator financial ledger entry across all monetization streams.",
+      "type": "object",
+      "properties": {
+        "creatorId": { "type": "string", "maxLength": 128 },
+        "counterpartyId": { "type": "string", "maxLength": 128 },
+        "counterpartyName": { "type": "string", "maxLength": 80 },
+        "source": { "type": "string", "enum": ["ad_revenue", "membership", "support", "brand_connect", "affiliate", "paid_video", "payout", "adjustment"] },
+        "grossInr": { "type": "number" },
+        "platformFeeInr": { "type": "number" },
+        "netCreatorInr": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "settled", "held", "disputed", "reversed", "paid"] },
+        "referenceId": { "type": "string", "maxLength": 128 },
+        "gatewayVerified": { "type": "boolean" },
+        "description": { "type": "string", "maxLength": 300 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["creatorId", "source", "grossInr", "platformFeeInr", "netCreatorInr", "status", "gatewayVerified", "description", "createdAt"]
+    },
+    "InvalidTrafficFlag": {
+      "title": "InvalidTrafficFlag",
+      "description": "Invalid ad or affiliate traffic detection alert and resolution status.",
+      "type": "object",
+      "properties": {
+        "targetType": { "type": "string", "enum": ["video", "affiliate", "creator"] },
+        "targetId": { "type": "string", "maxLength": 128 },
+        "creatorId": { "type": "string", "maxLength": 128 },
+        "creatorName": { "type": "string", "maxLength": 80 },
+        "signalType": { "type": "string", "maxLength": 120 },
+        "suspiciousCount": { "type": "number" },
+        "estimatedImpactInr": { "type": "number" },
+        "severity": { "type": "string", "enum": ["low", "medium", "high"] },
+        "status": { "type": "string", "enum": ["open", "confirmed_invalid", "cleared"] },
+        "notes": { "type": "string", "maxLength": 400 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["targetType", "targetId", "creatorId", "creatorName", "signalType", "suspiciousCount", "estimatedImpactInr", "severity", "status", "createdAt", "updatedAt"]
+    },
+    "PaymentDispute": {
+      "title": "PaymentDispute",
+      "description": "Viewer or creator payment dispute ticket requiring governance review.",
+      "type": "object",
+      "properties": {
+        "reporterId": { "type": "string", "maxLength": 128 },
+        "reporterName": { "type": "string", "maxLength": 80 },
+        "creatorId": { "type": "string", "maxLength": 128 },
+        "creatorName": { "type": "string", "maxLength": 80 },
+        "transactionId": { "type": "string", "maxLength": 128 },
+        "amountInr": { "type": "number" },
+        "category": { "type": "string", "enum": ["unauthorized", "undelivered", "payout_delay", "ad_deduction", "brand_milestone"] },
+        "reason": { "type": "string", "minLength": 5, "maxLength": 500 },
+        "status": { "type": "string", "enum": ["open", "investigating", "resolved", "refunded", "rejected"] },
+        "resolutionNote": { "type": "string", "maxLength": 400 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["reporterId", "reporterName", "creatorId", "creatorName", "transactionId", "amountInr", "category", "reason", "status", "createdAt", "updatedAt"]
+    },
+    "PaymentTransaction": {
+      "title": "PaymentTransaction",
+      "description": "User-submitted UPI QR payment transaction awaiting CEO/Admin UTR verification and service activation.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128 },
+        "userName": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "userEmail": { "type": "string", "maxLength": 160 },
+        "paymentMethod": { "type": "string", "enum": ["PhonePe", "Google Pay", "Paytm", "UPI", "Other UPI Apps"] },
+        "amountInr": { "type": "number" },
+        "utrNumber": { "type": "string", "minLength": 6, "maxLength": 40 },
+        "serviceType": { "type": "string", "enum": ["paid_video", "membership", "support", "creator_boost_pass", "platform_service"] },
+        "targetId": { "type": "string", "maxLength": 128 },
+        "targetTitle": { "type": "string", "minLength": 1, "maxLength": 150 },
+        "creatorId": { "type": "string", "maxLength": 128 },
+        "creatorName": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "serviceRecordId": { "type": "string", "maxLength": 128 },
+        "note": { "type": "string", "maxLength": 280 },
+        "qrCodeImage": { "type": "string", "maxLength": 200 },
+        "status": { "type": "string", "enum": ["pending_verification", "approved", "rejected"] },
+        "serviceActivated": { "type": "boolean" },
+        "rejectionReason": { "type": "string", "maxLength": 300 },
+        "verifiedByUid": { "type": "string", "maxLength": 128 },
+        "verifiedByRole": { "type": "string", "enum": ["ceo", "admin"] },
+        "verifiedAt": { "type": "string", "maxLength": 60 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "userName", "paymentMethod", "amountInr", "utrNumber", "serviceType", "targetId", "targetTitle", "creatorId", "creatorName", "status", "serviceActivated", "createdAt", "updatedAt"]
     }
   },
   "firestore": {
@@ -530,9 +835,61 @@
       "schema": { "$ref": "#/entities/UserNotification" },
       "description": "User notifications."
     },
+    "/creatorPayouts/{payoutId}": {
+      "schema": { "$ref": "#/entities/CreatorPayout" },
+      "description": "Creator payout requests and CEO-approved payout settlements."
+    },
     "/platformConfig/{configId}": {
       "schema": { "$ref": "#/entities/PlatformConfig" },
       "description": "Global platform configuration and categories."
+    },
+    "/adRevenueRecords/{recordId}": {
+      "schema": { "$ref": "#/entities/AdRevenueRecord" },
+      "description": "Transparent per-video advertisement revenue share records."
+    },
+    "/membershipPlans/{planId}": {
+      "schema": { "$ref": "#/entities/MembershipPlan" },
+      "description": "Creator monthly membership plans."
+    },
+    "/creatorMemberships/{membershipId}": {
+      "schema": { "$ref": "#/entities/CreatorMembership" },
+      "description": "Viewer creator memberships."
+    },
+    "/brandCampaigns/{campaignId}": {
+      "schema": { "$ref": "#/entities/BrandCampaign" },
+      "description": "BharatPlay Brand Connect sponsorship campaigns."
+    },
+    "/brandApplications/{appId}": {
+      "schema": { "$ref": "#/entities/BrandApplication" },
+      "description": "Creator applications and sponsorship deliverables."
+    },
+    "/affiliateLinks/{linkId}": {
+      "schema": { "$ref": "#/entities/AffiliateLink" },
+      "description": "Tracked creator affiliate links."
+    },
+    "/affiliateEvents/{eventId}": {
+      "schema": { "$ref": "#/entities/AffiliateEvent" },
+      "description": "Affiliate click and purchase conversion events."
+    },
+    "/videoPurchases/{purchaseId}": {
+      "schema": { "$ref": "#/entities/VideoPurchase" },
+      "description": "Verified paid video unlock records."
+    },
+    "/monetizationTransactions/{txId}": {
+      "schema": { "$ref": "#/entities/MonetizationTransaction" },
+      "description": "Immutable auditable creator earnings & transaction ledger."
+    },
+    "/invalidTrafficFlags/{flagId}": {
+      "schema": { "$ref": "#/entities/InvalidTrafficFlag" },
+      "description": "Invalid ad & affiliate traffic alerts and resolutions."
+    },
+    "/paymentDisputes/{disputeId}": {
+      "schema": { "$ref": "#/entities/PaymentDispute" },
+      "description": "Viewer and creator payment dispute records."
+    },
+    "/paymentTransactions/{paymentId}": {
+      "schema": { "$ref": "#/entities/PaymentTransaction" },
+      "description": "UPI QR payment submissions and CEO/Admin verification status records."
     }
   }
 }
